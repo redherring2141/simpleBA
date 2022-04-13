@@ -505,6 +505,7 @@ int main(int argc, char** argv)
             }
         }
         Show2DMat(points_image_noisy[idx_cam]);
+        //Just for test
 
         // Generate indices of outliers
 
