@@ -324,7 +324,7 @@ Mat2D_t bsxfun_minus(Mat2D_t matA, vector<double> vecB)
         {
             for(int col_A=0; col_A<nCols_matA; col_A++)
             {
-                ans[row_A][col_A] = matA[row_A][col_A] - vecB[row_A];
+                ans[row_A][col_A] = matA[row_A][col_A] - vecB[col_A];
             }
         }
         return ans;
@@ -438,13 +438,13 @@ int main(int argc, char** argv)
 
     
     // Project points into images
-    Mat3D_t points_image = Create3DMat(NPOSES, NPTS, 3);
-    Mat3D_t points_image_noisy = Create3DMat(NPOSES, NPTS, 3);
+    Mat3D_t points_image = Create3DMat(NPOSES, 3, NPTS);
+    Mat3D_t points_image_noisy = Create3DMat(NPOSES, 3, NPTS);
     for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
-            points_image_noisy[idx_cam][idx_pts][2] = 1.0;
+            points_image_noisy[idx_cam][2][idx_pts] = 1.0;
         }
     }
 
@@ -472,7 +472,7 @@ int main(int argc, char** argv)
         //points_image[idx_cam] = Mul2DMat(Trans2DMat(wRb), bsxfun_minus(points_world, p));
         points_image[idx_cam] = Mul2DMat(Trans2DMat(wRb), Trans2DMat(bsxfun_minus(points_world, p)));
         //points_image[idx_cam] = Mul2DMat(wRb, Trans2DMat(bsxfun_minus(points_world, p)));
-        Show2DMat(points_image[idx_cam]);
+        //Show2DMat(points_image[idx_cam]);
 
         // Divide by camera z coordinate
         vector<double> z_tmp = Create1DVec(NPTS);
@@ -485,20 +485,23 @@ int main(int argc, char** argv)
         //points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]);
         //Show2DMat(bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]));
         points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], z_tmp);
-        Show2DMat(points_image[idx_cam]);
-
+        //Show2DMat(points_image[idx_cam]);
+        //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER1>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
         // Add synthetic noise on all features
+        //Mat2D_t noise_points_image = Create2DMat(NPTS, 2);
         Mat2D_t noise_points_image = MulScala2DMat(randn(NPTS, 2), IMAGE_NOISE_STD);
-        for(int idx=0; idx<2; idx++)
+        //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER2>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
-            for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+            for(int idx=0; idx<2; idx++)
             {
-                
+                /*
                 cout << "[idx_cam idx_pts idx] = [" << idx_cam << " " << idx_pts << " " << idx << "]" << endl;
                 cout << "points_image[idx_cam][idx_pts][idx] = " << points_image[idx_cam][idx][idx_pts] << endl;
                 cout << "noise_points_image[idx_pts][idx] = " << noise_points_image[idx_pts][idx] << endl << endl;
-                 
-                //points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
+                */
+                //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER3>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+                points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
             }
         }
         Show2DMat(points_image_noisy[idx_cam]);
