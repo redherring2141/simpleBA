@@ -368,6 +368,38 @@ Mat2D_t bsxfun_rdivide(Mat2D_t matA, vector<double> vecB)
     }
 };
 
+vector<unsigned int> binomial_rndgen(unsigned nTrials, double prob)
+{
+    random_device rnd_seed{};       // use to seed the rng
+    mt19937 rnd_engine{rnd_seed()}; // rng
+
+    double p = 0.1; // probability
+    bernoulli_distribution dist(p);
+
+    //int nTrials = 50;
+    int nnz = 0;
+
+    vector<unsigned int> result;
+
+    // generate 5 runs
+    for (size_t i = 0; i < nTrials; ++i)
+    {
+        result[i] = (unsigned int)dist(rnd_engine);
+        cout << result[i] << " ";
+        (result[i] == true) ? nnz++ : nnz;
+    }
+    cout << endl << "Number of nonzeros = " << nnz << endl;
+
+    result[nTrials] = nnz;
+
+    return result;
+};
+
+unsigned int nnz(vector<unsigned int> outliers)
+{
+    return outliers[outliers.size()];
+};
+
 int main(int argc, char** argv)
 {  
     // Input 4 initial poses (add more here and increment NPOSES appropriately)
@@ -480,7 +512,7 @@ int main(int argc, char** argv)
         {
             z_tmp[idx] = points_image[idx_cam][2][idx];
         }
-        //Show1DVec(z_tmp);
+        Show1DVec(z_tmp);
         
         //points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]);
         //Show2DMat(bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]));
@@ -491,24 +523,41 @@ int main(int argc, char** argv)
         //Mat2D_t noise_points_image = Create2DMat(NPTS, 2);
         Mat2D_t noise_points_image = MulScala2DMat(randn(NPTS, 2), IMAGE_NOISE_STD);
         //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER2>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+
+        /*
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
             for(int idx=0; idx<2; idx++)
             {
-                /*
-                cout << "[idx_cam idx_pts idx] = [" << idx_cam << " " << idx_pts << " " << idx << "]" << endl;
-                cout << "points_image[idx_cam][idx_pts][idx] = " << points_image[idx_cam][idx][idx_pts] << endl;
-                cout << "noise_points_image[idx_pts][idx] = " << noise_points_image[idx_pts][idx] << endl << endl;
-                */
+                //cout << "[idx_cam idx_pts idx] = [" << idx_cam << " " << idx_pts << " " << idx << "]" << endl;
+                //cout << "points_image[idx_cam][idx_pts][idx] = " << points_image[idx_cam][idx][idx_pts] << endl;
+                //cout << "noise_points_image[idx_pts][idx] = " << noise_points_image[idx_pts][idx] << endl << endl;                
                 //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER3>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
                 points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
             }
         }
-        Show2DMat(points_image_noisy[idx_cam]);
-        //Just for test
+        */
+        //Show2DMat(points_image_noisy[idx_cam]);
 
         // Generate indices of outliers
-
+        vector<unsigned int> outlier_idx = binomial_rndgen(NPTS, OUTLIER_PROB);
+        unsigned int num_outliers = nnz(outlier_idx);
+        total_outliers += num_outliers;
+        Mat2D_t noise_outliers_image = MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD);
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+        {
+            for(int idx=0; idx<2; idx++)
+            {
+                if(outlier_idx[idx_pts]==1)
+                {
+                    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_outliers_image[idx_pts][idx];
+                }
+                else
+                {
+                    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
+                }
+            }
+        }
 
 
     }
