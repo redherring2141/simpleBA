@@ -379,7 +379,7 @@ vector<unsigned int> binomial_rndgen(unsigned nTrials, double prob)
     //int nTrials = 50;
     int nnz = 0;
 
-    vector<unsigned int> result;
+    vector<unsigned int> result = vector<unsigned int>(nTrials+1,0);
 
     // generate 5 runs
     for (size_t i = 0; i < nTrials; ++i)
