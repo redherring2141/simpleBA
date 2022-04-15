@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <vector>
 
 #include <cstdio>
@@ -385,10 +386,10 @@ vector<unsigned int> binomial_rndgen(unsigned nTrials, double prob)
     for (size_t i = 0; i < nTrials; ++i)
     {
         result[i] = (unsigned int)dist(rnd_engine);
-        cout << result[i] << " ";
+        //cout << result[i] << " ";
         (result[i] == true) ? nnz++ : nnz;
     }
-    cout << endl << "Number of nonzeros = " << nnz << endl;
+    //cout << endl << "Number of nonzeros = " << nnz << endl;
 
     result[nTrials] = nnz;
 
@@ -399,6 +400,38 @@ unsigned int nnz(vector<unsigned int> outliers)
 {
     return outliers[outliers.size()];
 };
+
+void WriteToPLYFile(const string &filename, Mat3D_t cams, Mat2D_t pts)
+{
+    unsigned num_cameras = cams.size();
+    unsigned num_points = pts.size();
+    ofstream of(filename.c_str());
+
+    of << "ply"
+       << '\n' << "format ascii 1.0"
+       << '\n' << "element vertex " << num_cameras + num_points
+       << '\n' << "property float x"
+       << '\n' << "property float y"
+       << '\n' << "property float z"
+       << '\n' << "property uchar red"
+       << '\n' << "property uchar green"
+       << '\n' << "property uchar blue"
+       << '\n' << "end_header" << endl;
+
+    // Export extrinsic data (i.e. camera centers) as green points.
+    for(int idx_cam = 0; idx_cam < num_cameras; idx_cam++)
+    {
+        of << cams[idx_cam][0][0] << ' ' << cams[idx_cam][1][0] << ' ' << cams[idx_cam][2][0] << " 0 255 0" << '\n';
+    }
+
+    // Export the structure (i.e. 3D Points) as white points.
+    for (int idx_pts = 0; idx_pts < num_points; idx_pts++)
+    {
+        of << pts[idx_pts][0] << ' ' << pts[idx_pts][1] << ' ' << pts[idx_pts][2] << " 255 255 255" << '\n';
+    }
+
+    of.close();
+}
 
 int main(int argc, char** argv)
 {  
@@ -512,7 +545,7 @@ int main(int argc, char** argv)
         {
             z_tmp[idx] = points_image[idx_cam][2][idx];
         }
-        Show1DVec(z_tmp);
+        //Show1DVec(z_tmp);
         
         //points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]);
         //Show2DMat(bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]));
@@ -558,13 +591,10 @@ int main(int argc, char** argv)
                 }
             }
         }
-
-
     }
     //Show2DMat(bsxfun_minus_tmp);
     //Show3DMat(points_image);
-
-
+    WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
 
     return 0;
 };
