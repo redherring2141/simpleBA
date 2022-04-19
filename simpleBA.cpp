@@ -373,7 +373,7 @@ Mat2D_t bsxfun_rdivide(Mat2D_t matA, vector<double> vecB)
     }
 };
 
-vector<unsigned int> binomial_rndgen(unsigned nTrials, double prob)
+vector<double> binomial_rndgen(unsigned nTrials, double prob)
 {
     random_device rnd_seed{};       // use to seed the rng
     mt19937 rnd_engine{rnd_seed()}; // rng
@@ -382,27 +382,27 @@ vector<unsigned int> binomial_rndgen(unsigned nTrials, double prob)
     bernoulli_distribution dist(p);
 
     //int nTrials = 50;
-    int nnz = 0;
+    unsigned int nnz = 0;
 
-    vector<unsigned int> result = vector<unsigned int>(nTrials+1,0);
+    vector<double> result = vector<double>(nTrials+1,0);
 
     // generate 5 runs
     for (size_t i = 0; i < nTrials; ++i)
     {
-        result[i] = (unsigned int)dist(rnd_engine);
+        result[i] = (double)dist(rnd_engine);
         //cout << result[i] << " ";
-        (result[i] == true) ? nnz++ : nnz;
+        (result[i] == 0.0) ? nnz : nnz++;
     }
     //cout << endl << "Number of nonzeros = " << nnz << endl;
 
-    result[nTrials] = nnz;
+    result[nTrials] = (double) nnz;
 
     return result;
 };
 
-unsigned int nnz(vector<unsigned int> outliers)
+unsigned int nnz(vector<double> outliers)
 {
-    return outliers[outliers.size()-1];
+    return (unsigned int) outliers[outliers.size()-1];
 };
 
 void WriteToPLYFile(const string &filename, Mat3D_t cams, Mat2D_t pts)
@@ -460,15 +460,15 @@ int main(int argc, char** argv)
     Mat3D_t p_cams_noisy = Create3DMat(NPOSES, 3, 1);
 
     srand(time(NULL));
-    for(int idx=0; idx<NPOSES; idx++)
+    for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
-        double noise_scale = (double)max((idx-1),0) / (double)(NPOSES-2);
+        double noise_scale = (double)max((idx_cam-1),0) / (double)(NPOSES-2);
         //cout << "idx = " << idx << "\tnoise_scale = " << noise_scale << endl;
         Mat2D_t angs = MulScala2DMat(randn(3,1), noise_scale*ROTATION_NOISE_STD);        
         Mat2D_t noise_rot = Mul2DMat(Mul2DMat(rot_x(angs[0][0]), rot_y(angs[1][0])), rot_z(angs[2][0]));
         Mat2D_t noise_pos = MulScala2DMat(randn(3,1), noise_scale*POSITION_NOISE_STD);
-        wRb_cams_noisy[idx] = Mul2DMat(noise_rot, wRb_cams[idx]);
-        p_cams_noisy[idx] = Add2DMat(noise_pos, p_cams[idx]);
+        wRb_cams_noisy[idx_cam] = Mul2DMat(noise_rot, wRb_cams[idx_cam]);
+        p_cams_noisy[idx_cam] = Add2DMat(noise_pos, p_cams[idx_cam]);
     }
     //Show3DMat(wRb_cams_noisy);
     //Show3DMat(p_cams_noisy);
@@ -545,9 +545,9 @@ int main(int argc, char** argv)
 
         // Divide by camera z coordinate
         vector<double> z_tmp = Create1DVec(NPTS);
-        for(int idx=0; idx<NPTS; idx++)
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
-            z_tmp[idx] = points_image[idx_cam][2][idx];
+            z_tmp[idx_pts] = points_image[idx_cam][2][idx_pts];
         }
         //Show1DVec(z_tmp);
         
@@ -566,13 +566,13 @@ int main(int argc, char** argv)
         
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
-            for(int idx=0; idx<2; idx++)
+            for(int idx_dim=0; idx_dim<2; idx_dim++)
             {
                 //cout << "[idx_cam idx_pts idx] = [" << idx_cam << " " << idx_pts << " " << idx << "]" << endl;
                 //cout << "points_image[idx_cam][idx_pts][idx] = " << points_image[idx_cam][idx][idx_pts] << endl;
                 //cout << "noise_points_image[idx_pts][idx] = " << noise_points_image[idx_pts][idx] << endl << endl;                
                 //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER3>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
-                points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
+                points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_points_image[idx_pts][idx_dim];
             }
         }
         
@@ -580,7 +580,8 @@ int main(int argc, char** argv)
 
         
         // Generate indices of outliers
-        vector<unsigned int> outlier_idx = binomial_rndgen(NPTS, OUTLIER_PROB);
+        vector<double> outlier_idx = Create1DVec(NPTS);
+        outlier_idx = binomial_rndgen(NPTS, OUTLIER_PROB);
         unsigned int num_outliers = nnz(outlier_idx);
         total_outliers += num_outliers;
         cout << "num_outliers = " << num_outliers << endl;
@@ -589,10 +590,20 @@ int main(int argc, char** argv)
         //Show2DMat(randn(num_outliers, 2));
         //Show2DMat(MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD));
         //Show1DVec(outlier_idx);
+
+        /*
+        cout << "\n<<<<<points_image_noisy>>>>>" << endl;
+        Show3DMat(points_image_noisy);
+        cout << "\n<<<<<points_image>>>>>" << endl;
+        Show3DMat(points_image);
+        cout << "\n<<<<<noise_outliers_image>>>>>" << endl;
         Show2DMat(noise_outliers_image);
+        cout << "\n<<<<<noise_points_image>>>>>" << endl;
+        Show2DMat(noise_points_image);
+        */
 
         
-        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+        for(int idx_pts=0; idx_pts<num_outliers; idx_pts++)
         {
             for(int idx=0; idx<2; idx++)
             {
@@ -600,20 +611,23 @@ int main(int argc, char** argv)
                 {
                     points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_outliers_image[idx_pts][idx];
                 }
-                /*
-                else
-                {
-                    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
-                }
-                */
+                
+                //else
+                //{
+                //    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
+                //}
+                //
 
             }
         }
         
+        
+
         cout << "total_outliers = " << total_outliers << endl;
     }
 
-    /*
+
+    
     // Estimated poses
     Mat3D_t wRb_cams_estimate = wRb_cams_noisy;
     Mat3D_t p_cams_estimate = p_cams_noisy;
@@ -623,11 +637,11 @@ int main(int argc, char** argv)
     // Triangulate initial guesses on all feature with least squares
     Mat3D_t points_world_estimate = Create3DMat(NPTS, 3, 1);
     
-    for(int idx_pts; idx_pts<NPTS; idx_pts++)
+    for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
     {
         Mat2D_t A = Create2DMat(3, 3);
         Mat2D_t b = Create2DMat(3, 1);
-        Mat2D_t u = Create2DMat(NPOSES, 3);
+        Mat2D_t u = Create2DMat(3, NPOSES);
 
         // All observations of this feature, normalized
         for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
@@ -643,15 +657,15 @@ int main(int argc, char** argv)
             double sum_col = 0;
             for(int idx=0; idx<3; idx++)
             {
-                sum_col += pow(u[idx_cam][idx],2);
+                sum_col += pow(u[idx][idx_cam],2);
             }
             u_sqrt[idx_cam] = sqrt(sum_col);
         }
-        u = bsxfun_rdivide(Trans2DMat(u), u_sqrt);
+        u = bsxfun_rdivide(u, u_sqrt);
 
         Show2DMat(u);
     }
-    */
+    
 
     //Show2DMat(bsxfun_minus_tmp);
     //Show3DMat(points_image);
