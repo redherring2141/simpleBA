@@ -605,16 +605,16 @@ int main(int argc, char** argv)
         
         for(int idx_pts=0; idx_pts<num_outliers; idx_pts++)
         {
-            for(int idx=0; idx<2; idx++)
+            for(int idx_dim=0; idx_dim<2; idx_dim++)
             {
                 if(outlier_idx[idx_pts]==1)
                 {
-                    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_outliers_image[idx_pts][idx];
+                    points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_outliers_image[idx_pts][idx_dim];
                 }
                 
                 //else
                 //{
-                //    points_image_noisy[idx_cam][idx][idx_pts] = points_image[idx_cam][idx][idx_pts] + noise_points_image[idx_pts][idx];
+                //    points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_points_image[idx_pts][idx_dim];
                 //}
                 //
 
@@ -642,28 +642,47 @@ int main(int argc, char** argv)
         Mat2D_t A = Create2DMat(3, 3);
         Mat2D_t b = Create2DMat(3, 1);
         Mat2D_t u = Create2DMat(3, NPOSES);
+        Mat2D_t v = Create2DMat(3, 1);
+        Mat2D_t B = Create2DMat(3, 3);
+        Mat2D_t eye = Create2DMat(3, 3);
+        eye = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 
         // All observations of this feature, normalized
         for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
         {
-            for(int idx=0; idx<3; idx++)
+            for(int idx_dim=0; idx_dim<3; idx_dim++)
             {
-                u[idx][idx_cam] = points_image[idx_cam][idx][idx_pts];
+                u[idx_dim][idx_cam] = points_image[idx_cam][idx_dim][idx_pts];
             }
         }
         vector<double> u_sqrt = Create1DVec(NPOSES);
         for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
         {
             double sum_col = 0;
-            for(int idx=0; idx<3; idx++)
+            for(int idx_dim=0; idx_dim<3; idx_dim++)
             {
-                sum_col += pow(u[idx][idx_cam],2);
+                sum_col += pow(u[idx_dim][idx_cam],2);
             }
             u_sqrt[idx_cam] = sqrt(sum_col);
         }
         u = bsxfun_rdivide(u, u_sqrt);
 
-        Show2DMat(u);
+        for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
+        {
+            Mat2D_t u_pose = Create2DMat(3, 1);
+            for(int idx_dim=0; idx_dim<3; idx_dim++)
+            {
+                u_pose[idx_dim][0] = u[idx_dim][idx_cam];
+            }
+            v = Mul2DMat(wRb_cams_estimate[idx_cam], u_pose);
+            B = Add2DMat(eye, MulScala2DMat(Mul2DMat(v, Trans2DMat(v)), -1.0));
+            A = Add2DMat(A, B);
+            b = Add2DMat(b, Mul2DMat(B, p_cams_estimate[idx_cam]));
+
+
+        }
+
+        Show2DMat(b);
     }
     
 
