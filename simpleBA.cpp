@@ -678,6 +678,7 @@ int main(int argc, char** argv)
             B = Add2DMat(eye, MulScala2DMat(Mul2DMat(v, Trans2DMat(v)), -1.0));
             A = Add2DMat(A, B);
             b = Add2DMat(b, Mul2DMat(B, p_cams_estimate[idx_cam]));
+            
 
 
         }
@@ -688,7 +689,7 @@ int main(int argc, char** argv)
 
     //Show2DMat(bsxfun_minus_tmp);
     //Show3DMat(points_image);
-    //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
+    WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
 
     return 0;
 };
