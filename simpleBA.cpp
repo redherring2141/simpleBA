@@ -27,6 +27,10 @@
 #define OUTLIER_PROB    0.1 // Probability of a bad outlier
 #define OUTLIER_IMAGE_NOISE_STD (30.0/FOCAL_LENGTH)
 
+#define NUM_ITERATIONS  10
+#define START_POSE  3
+#define NPOSES_OPT  (NPOSES - START_POSE + 1)
+
 
 using namespace std;
 //using namespace Eigen;
@@ -168,10 +172,126 @@ Mat2D_t Trans2DMat(Mat2D_t mat)
     return mat_trans;
 };
 
+Mat2D_t GetAugmentedMat(Mat2D_t matA)
+{
+    int nRows_matA = matA.size();
+    int nCols_matA = matA[0].size();
+    int n = 0;
+
+    if(nRows_matA == nCols_matA)
+    {
+        n = nRows_matA;
+    }
+    else
+    {
+        cout << "Only available for a square matrix. Function: GetAugmentedMat" << endl;
+        abort();
+    }
+
+    Mat2D_t matAug = Create2DMat(n, 2*n);
+    for(int row=0; row<n; row++)
+    {
+        for(int col=0; col<n; col++)
+        {
+            matAug[row][col] = matA[row][col];
+        }
+        matAug[row][row+n] = 1;
+    }
+    return matAug;
+};
+
+Mat2D_t GetInverseMat(Mat2D_t matA)
+{
+    int nRows_matA = matA.size();
+    int nCols_matA = matA[0].size();
+    int n = 0;
+
+    if((nRows_matA) == nCols_matA)
+    {
+        n = nRows_matA;
+    }
+    else
+    {
+        cout << "Only available for a square matrix. Function: GetInverseMat" << endl;
+        abort();
+    }
+
+    Mat2D_t matAug = Create2DMat(n, 2*n);
+    matAug = GetAugmentedMat(matA);
+
+
+    for(int i=0; i<n; i++)
+    {// Search for the maximum in this column
+        double maxEl = abs(matAug[i][i]);
+        int maxRow = i;
+        for(int k=i+1; k<n; k++)
+        {
+            if(abs(matAug[k][i]) > maxEl)
+            {
+                maxEl = matAug[k][i];
+                maxRow = k;
+            }
+        }
+
+        for(int k=i; k<2*n; k++)
+        {// Swap the maximum row with current row (column by column)
+            double tmp = matAug[maxRow][k];
+            matAug[maxRow][k] = matAug[i][k];
+            matAug[i][k] = tmp;
+        }
+
+        for(int k=i+1; k<n; k++)
+        {// Make all rows below this one 0 in current column
+            double c = -matAug[k][i]/matAug[i][i];
+            for(int j=i; j<2*n; j++)
+            {
+                if(i==j)
+                {
+                    matAug[k][j] = 0;
+                }
+                else
+                {
+                    matAug[k][j] += c * matAug[i][j];
+                }
+            }
+        }
+    }
+
+    for(int i=n-1; i>=0; i--)
+    {// Solve equation Ax=b for an upper triangular matrix A
+        for(int k=n; k<2*n; k++)
+        {
+            matAug[i][k] /= matAug[i][i];
+        }
+        // This is not necessary, but the output looks nicer:
+        matAug[i][i] = 1;
+
+        for(int rowModify=i-1; rowModify>=0; rowModify--)
+        {
+            for(int colModify=n; colModify<2*n; colModify++)
+            {
+                matAug[rowModify][colModify] -= matAug[i][colModify] * matAug[rowModify][i];
+            }
+            // This is not necessary, but the output looks nicer:
+            matAug[rowModify][i] = 0;
+        }
+    }
+
+    Mat2D_t matInv = Create2DMat(n, n);
+    for(int row=0; row<n; row++)
+    {
+        for(int col=0; col<n; col++)
+        {
+            matInv[row][col] = matAug[row][col+n];
+        }
+    }
+    return matInv;
+};
+
 void Show1DVec(vector<double> vec)
 {
     int len = vec.size();
-    cout << "1D vector display: Length = " << len << endl;
+    cout << "[1D vector display: Length = " << len << "]" << endl;
     for(int idx=0; idx<len; idx++)
     {
         cout << ((abs(vec[idx])<EPSILON) ? 0 : vec[idx]) << "\t";
@@ -185,7 +305,7 @@ void Show2DMat(Mat2D_t mat)
     int nRows = mat.size();
     int nCols = mat[0].size();
 
-    cout << "2D matrix display: Rows = " << nRows << ", Cols = " << nCols << endl;
+    cout << "[2D matrix display: Rows = " << nRows << ", Cols = " << nCols << "]" << endl;
 
     for(int row=0;row<nRows;row++)
     {
@@ -205,7 +325,7 @@ void Show3DMat(Mat3D_t mat)
     int nRows = mat[0].size();
     int nCols = mat[0][0].size();
 
-    cout << "3D matrix display: Depths = " << nDepth << ", Rows = " << nRows << ", Cols = " << nCols << endl;
+    cout << "[3D matrix display: Depths = " << nDepth << ", Rows = " << nRows << ", Cols = " << nCols << "]" << endl;
 
     for(int depth=0;depth<nDepth;depth++)
     {
@@ -403,6 +523,30 @@ vector<double> binomial_rndgen(unsigned nTrials, double prob)
 unsigned int nnz(vector<double> outliers)
 {
     return (unsigned int) outliers[outliers.size()-1];
+};
+
+unsigned int idx_min(vector<double> vec)
+{
+    double val_min = vec[0];
+    unsigned int idx_ret = 0;
+    unsigned len = vec.size();
+    for(int idx=0; idx<len; idx++)
+    {
+        if(vec[idx]<val_min)
+        {
+            val_min = vec[idx];
+        }
+    }
+
+    for(int idx=0; idx<len; idx++)
+    {
+        if(vec[idx]==val_min)
+        {
+            idx_ret = idx;
+            break;
+        }
+    }
+    return idx_ret;
 };
 
 void WriteToPLYFile(const string &filename, Mat3D_t cams, Mat2D_t pts)
@@ -678,18 +822,131 @@ int main(int argc, char** argv)
             B = Add2DMat(eye, MulScala2DMat(Mul2DMat(v, Trans2DMat(v)), -1.0));
             A = Add2DMat(A, B);
             b = Add2DMat(b, Mul2DMat(B, p_cams_estimate[idx_cam]));
-            
-
-
         }
 
-        Show2DMat(b);
+        // Solve
+        points_world_estimate[idx_pts] = Mul2DMat(GetInverseMat(A), b);
+
+        //Show2DMat(b);
+    }
+
+
+    // Find best point
+    Mat2D_t point_deltas = Create2DMat(NPTS, 3);
+    Mat2D_t points_world_estimate_tmp = Create2DMat(NPTS, 3);
+    for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+    {
+        for(int idx_dim=0; idx_dim<3; idx_dim++)
+        {
+            points_world_estimate_tmp[idx_pts][idx_dim] = points_world_estimate[idx_pts][idx_dim][0];
+        }
+    }
+    point_deltas = Add2DMat(points_world, MulScala2DMat(points_world_estimate_tmp, -1));
+
+    vector<double> point_deltas_sqrt = Create1DVec(NPTS);
+    for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+    {
+        double squared_col_sum = 0;
+        for(int idx_dim=0; idx_dim<3; idx_dim++)
+        {
+            squared_col_sum += pow(point_deltas[idx_pts][idx_dim], 2);
+        }
+        cout << "squared_col_sum = " << squared_col_sum << endl;
+        point_deltas_sqrt[idx_pts] = sqrt(squared_col_sum);
+    }
+    unsigned best_point_idx = idx_min(point_deltas_sqrt);
+
+    // Convert poses to SE3
+    Mat3D_t cam_pose_estimates = Create3DMat(NPOSES, 4, 4);
+    for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
+    {
+        Mat2D_t wRb = wRb_cams[idx_cam];
+        Mat2D_t p = {{p_cams[idx_cam][0][0]}, {p_cams[idx_cam][1][0]}, {p_cams[idx_cam][2][0]}};
+
+        for(int row=0; row<3; row++)
+        {
+            for(int col=0; col<3; col++)
+            {
+                cam_pose_estimates[idx_cam][row][col] = Trans2DMat(wRb)[row][col];
+            }
+            cam_pose_estimates[idx_cam][row][3] = Mul2DMat(MulScala2DMat(Trans2DMat(wRb), -1), p)[row][0];
+        }
+        cam_pose_estimates[idx_cam][3] = {0, 0, 0, 1};
+    }
+
+    // Run bundle adjustment
+    // We will optimize only the poses from START_POSE to NPOSES (inclusive)
+    
+    for(int iter=0; iter<NUM_ITERATIONS; iter++)
+    {
+        // Formulate Jacobian and residual
+        Mat2D_t J = Create2DMat(NPTS*NPOSES*2, NPTS*3+NPOSES_OPT*6);
+        Mat2D_t r = Create2DMat(NPTS*NPOSES*2, 1);
+
+        // Structure of Jacobian
+        // [point_0 ... point_i ... point_N | pose_0 ... pose_i ... pose_N]
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+        {
+            Mat2D_t p_world = points_world_estimate[idx_pts];
+            for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
+            {
+                // Camera pose
+                Mat2D_t H_cam = cam_pose_estimates[idx_cam];
+                Mat2D_t p_cam = Mul2DMat(H_cam, (Mat2D_t){{p_world[0][0]}, {p_world[1][0]}, {p_world[2][0]}, {1}});
+                Mat2D_t p_cam_truncated = {{p_cam[0][0]}, {p_cam[1][0]}, {p_cam[2][0]}}; // Truncate to remove 1
+                double xc = p_cam_truncated[0][0];
+                double yc = p_cam_truncated[1][0];
+                double zc = p_cam_truncated[2][0];
+
+                // Projection Jacobian (2x3)
+                Mat2D_t Jproj = Create2DMat(2, 3);
+                Jproj = {{1/zc, 0, -1*xc/(zc*zc)}, {0, 1/zc, -1*yc/(zc*zc)}};
+
+                // Project to image coordinates and calculate residual
+                Mat2D_t h_est = Create2DMat(3, 1);
+                h_est = MulScala2DMat(p_cam_truncated, 1/p_cam_truncated[2][0]);
+                unsigned row = (idx_cam-1)*NPTS*2 + (idx_pts-1)*2 + 1;
+                /*
+                for(int idx_row=row; idx_row<(row+2); idx_row++)
+                {
+                    cout << "<<<<< debugging 8>>>>>" << endl;         
+                    r[idx_row][0] = points_image_noisy[idx_cam][idx_row-row][idx_pts] - h_est[idx_row-row][0];
+                    cout << "<<<<< debugging 9>>>>>" << endl;                         
+                }
+
+                // Pose Jacobian (3x6)
+                Mat2D_t Jpose = Create2DMat(3, 6);
+                */
+
+
+
+                
+
+                // Transform to camera
+
+            }
+        }
+
     }
     
 
+    
+    Show3DMat(cam_pose_estimates);
+    //cout << "best_point_idx = " << best_point_idx << endl;
+    
+    //Show1DVec(point_deltas_sqrt);
+    
+
+    //Show3DMat(points_world_estimate);
+
     //Show2DMat(bsxfun_minus_tmp);
     //Show3DMat(points_image);
-    WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
+    //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
+
+    
+
+    //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world_estimate_2D);
+    
 
     return 0;
 };

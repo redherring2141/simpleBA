@@ -4,8 +4,9 @@
 
 using namespace std;
 
-void print(vector< vector<double> > A) {
+void print(vector< vector<double>> &A) {
     int n = A.size();
+    std::cout << "A.size() --> " << n << std::endl;
     for (int i=0; i<n; i++) {
         for (int j=0; j<2*n; j++) {
             cout << A[i][j] << "\t";
@@ -73,23 +74,49 @@ void calculateInverse(vector< vector<double> >& A) {
 
 int main() {
     int n;
+    /*
     cout << "Size: ";
     cin >> n;
+    */
+    n=4;
 
-    vector<double> line(2*n,0);
+    vector<double> line(2*n,0.0);
     vector< vector<double> > A(n,line);
 
+
     // Read input data
+    /*
     for (int i=0; i<n; i++) {
         for (int j=0; j<n; j++) {
             cout << "A[" << i << "][" << j << "]: ";
             cin >> A[i][j];
         }
     }
+    */
+    //A = { {5, -2, 2, 7, 0, 0, 0, 0}, {1, 0, 0, 3, 0, 0, 0, 0}, {-3, 1, 5, 0, 0, 0, 0, 0}, {3, -1, -9, 4, 0, 0, 0, 0} };
+    A = { {5, -2, 2, 7}, {1, 0, 0, 3}, {-3, 1, 5, 0}, {3, -1, -9, 4} };
+    // A = { {5.0, -2.0, 2.0, 7.0}, {1.0, 0.0, 0.0, 3.0}, {-3.0, 1.0, 5.0, 0.0}, {3.0, -1.0, -9.0, 4.0} };
+
+    // double input[n][n] = { {5, -2, 2, 7}, {1, 0, 0, 3}, {-3, 1, 5, 0}, {3, -1, -9, 4} };
+    // for (int i=0; i<n; i++) {
+        // for (int j=0; j<n; j++) {
+            // A[i][j] = input[i][j];
+        // }
+    // }
+
+
 
     for (int i=0; i<n; i++) {
-        A[i][n+i] = 1;
+        A[i][n+i] = 1.0;
     }
+
+    // Tae
+    // for (int i = 0; i < 4; i++){
+        // for(int j = 0; j < 8; j++){
+            // std::cout << i << " " << j << std::endl;
+            // std::cout << A[i][j] << std::endl;
+        // }
+    // }
 
     // Print input
     print(A);
