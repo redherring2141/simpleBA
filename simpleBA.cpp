@@ -28,7 +28,7 @@
 #define OUTLIER_IMAGE_NOISE_STD (30.0/FOCAL_LENGTH)
 
 #define NUM_ITERATIONS  10
-#define START_POSE  3
+#define START_POSE  3 // (Originally 3 in MATLAB's indexing system)
 #define NPOSES_OPT  (NPOSES - START_POSE + 1)
 
 
@@ -579,7 +579,30 @@ void WriteToPLYFile(const string &filename, Mat3D_t cams, Mat2D_t pts)
     }
 
     of.close();
-}
+};
+
+Mat2D_t skew3(Mat2D_t vecA)
+{
+    Mat2D_t vecRet = Create2DMat(3, 3);
+    vecRet = {  {0, (-1)*vecA[2][0], vecA[1][0]},
+                {vecA[2][0], 0, (-1)*vecA[0][0]},
+                {(-1)*vecA[1][0], vecA[0][0], 0}  };
+
+    return vecRet;
+};
+
+double norm_Mat(Mat2D_t mat)
+{
+    unsigned len=mat.size();
+    double partial_sum = 0;
+    double L2norm = 0;
+    for(int idx=0; idx<len; idx++)
+    {
+        partial_sum += pow(mat[idx][0], 2);
+    }
+    L2norm = sqrt(partial_sum);
+    return L2norm;
+};
 
 int main(int argc, char** argv)
 {  
@@ -728,7 +751,7 @@ int main(int argc, char** argv)
         outlier_idx = binomial_rndgen(NPTS, OUTLIER_PROB);
         unsigned int num_outliers = nnz(outlier_idx);
         total_outliers += num_outliers;
-        cout << "num_outliers = " << num_outliers << endl;
+        //cout << "num_outliers = " << num_outliers << endl;
         Mat2D_t noise_outliers_image = Create2DMat(num_outliers, 2);
         noise_outliers_image = MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD);
         //Show2DMat(randn(num_outliers, 2));
@@ -764,11 +787,9 @@ int main(int argc, char** argv)
 
             }
         }
-        
-        
-
-        cout << "total_outliers = " << total_outliers << endl;
+        //cout << "Total number of outliers: " << total_outliers << endl;
     }
+    cout << "Total number of outliers: " << total_outliers << endl;
 
 
     
@@ -851,7 +872,7 @@ int main(int argc, char** argv)
         {
             squared_col_sum += pow(point_deltas[idx_pts][idx_dim], 2);
         }
-        cout << "squared_col_sum = " << squared_col_sum << endl;
+        //cout << "squared_col_sum = " << squared_col_sum << endl;
         point_deltas_sqrt[idx_pts] = sqrt(squared_col_sum);
     }
     unsigned best_point_idx = idx_min(point_deltas_sqrt);
@@ -905,33 +926,82 @@ int main(int argc, char** argv)
                 // Project to image coordinates and calculate residual
                 Mat2D_t h_est = Create2DMat(3, 1);
                 h_est = MulScala2DMat(p_cam_truncated, 1/p_cam_truncated[2][0]);
-                unsigned row = (idx_cam-1)*NPTS*2 + (idx_pts-1)*2 + 1;
-                /*
+                unsigned row = idx_cam*NPTS*2 + idx_pts*2;
+                //cout << "row = " << row << endl;
                 for(int idx_row=row; idx_row<(row+2); idx_row++)
                 {
-                    cout << "<<<<< debugging 8>>>>>" << endl;         
+                    //cout << "<<<<< debugging 8>>>>>" << endl;         
                     r[idx_row][0] = points_image_noisy[idx_cam][idx_row-row][idx_pts] - h_est[idx_row-row][0];
-                    cout << "<<<<< debugging 9>>>>>" << endl;                         
+                    //cout << "<<<<< debugging 9>>>>>" << endl;                         
                 }
-
+                
                 // Pose Jacobian (3x6)
                 Mat2D_t Jpose = Create2DMat(3, 6);
-                */
-
-
-
-                
+                Mat2D_t p_cam_skew = MulScala2DMat(skew3(p_cam), -1);
+                Jpose = { {1, 0, 0, p_cam_skew[0][0], p_cam_skew[0][1], p_cam_skew[0][2]},
+                          {0, 1, 0, p_cam_skew[1][0], p_cam_skew[1][1], p_cam_skew[1][2]},
+                          {0, 0, 1, p_cam_skew[2][0], p_cam_skew[2][1], p_cam_skew[2][2]} };
 
                 // Transform to camera
+                Mat2D_t Jpoint = Create2DMat(3, 3);
+                for(int idx_row=0; idx_row<3; idx_row++)
+                {
+                    for(int idx_col=0; idx_col<3; idx_col++)
+                    {
+                        Jpoint[idx_row][idx_col] = H_cam[idx_row][idx_col];
+                    }
+                }
 
+                // Insert Jacobians
+                if(idx_cam >= (START_POSE-1))
+                {// Optimizing pose also
+                    int cols_pose = NPTS*3 + (idx_cam - (START_POSE-1))*6;
+                    vector<int> idx_cols_pose = vector<int> (6, 0);
+                    for(int idx_row=row; idx_row<(row+2); idx_row++)
+                    {
+                        for(int idx_vec=0; idx_vec<6; idx_vec++)
+                        {
+                            J[idx_row][idx_cols_pose[idx_vec]] = Mul2DMat(Jproj, Jpose)[idx_row-row][idx_vec];
+                        }
+                    }
+                }
+                else
+                {
+                    // Optimizing only points
+                }
+                int cols_pts = idx_pts*3;
+                vector<int> idx_cols_pts = vector<int> (3, 0);
+                for(int idx_row=row; idx_row<(row+2); idx_row++)
+                {
+                    for(int idx_vec=0; idx_vec<3; idx_vec++)
+                    {
+                        J[idx_row][idx_cols_pts[idx_vec]] = Mul2DMat(Jproj, Jpoint)[idx_row-row][idx_vec];
+                    }
+                }                
             }
+            //Show2DMat(r);              
         }
+        double norm_r = norm_Mat(r);
+    
+        cout << "Iter " << iter << ", magnitude " << norm_r << endl;
 
+        // Calculate cauchy weights
+        vector<double> r2 = vector<double> (r.size(), 0);
+        double partial_sum = 0;
+        /*
+        for(int idx=0; idx<r.size(); 0)
+        {
+            r2[idx]=pow(r[idx][0],2);
+            partial_sum += r2[idx];
+        }
+        double sigsqrd = partial_sum / r2.size();
+        */
     }
+
     
 
     
-    Show3DMat(cam_pose_estimates);
+    //Show3DMat(cam_pose_estimates);
     //cout << "best_point_idx = " << best_point_idx << endl;
     
     //Show1DVec(point_deltas_sqrt);
