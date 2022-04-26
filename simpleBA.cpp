@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <iomanip>
 
 #include <cstdio>
 #include <cmath>
@@ -304,14 +305,13 @@ void Show2DMat(Mat2D_t mat)
 {
     int nRows = mat.size();
     int nCols = mat[0].size();
-
     cout << "[2D matrix display: Rows = " << nRows << ", Cols = " << nCols << "]" << endl;
 
     for(int row=0;row<nRows;row++)
     {
         for(int col=0;col<nCols;col++)
         {
-            cout << mat[row][col] << "\t";
+            cout << mat[row][col] << " ";
             //cout << ((abs(mat[row][col])<EPSILON) ? 0 : mat[row][col]) << "\t";
         }
         cout << endl;
@@ -604,8 +604,47 @@ double norm_Mat(Mat2D_t mat)
     return L2norm;
 };
 
+Mat2D_t rodrigues(Mat2D_t omega)
+{// Rodrigues formula for 3x1 vector only
+    int nRows = omega.size();
+    int nCols = omega[0].size();
+    if(nRows == 3 && nCols == 1)
+    {
+        assert(nRows == 3 && nCols == 1);
+    }
+    else
+    {
+        cout << "Wrong vector size. Aborting..." << endl;
+        abort();
+    }
+
+    double theta = norm_Mat(omega);
+    double theta2 = 0;
+    double sinthetatheta = 0;
+    double onecosthetatheta2 = 0;
+    if(theta < (sqrt(EPSILON)*100))
+    {
+        theta2 = Mul2DMat(Trans2DMat(omega), omega)[0][0];
+        sinthetatheta = 1 - theta2/6;
+        onecosthetatheta2 = 1 - theta2/24;
+    }
+    else
+    {
+        theta2 = theta*theta;
+        onecosthetatheta2 = (1-cos(theta))/theta2;
+        sinthetatheta = sin(theta)/theta;
+    }
+    Mat2D_t omegav = Create2DMat(3, 3);
+    omegav = skew3(omega);
+    Mat2D_t R = Create2DMat(3, 3);
+    R = Add2DMat(Add2DMat({ {1, 0, 0}, {0, 1, 0}, {0, 0, 1} }, MulScala2DMat(omegav, sinthetatheta)), MulScala2DMat(Mul2DMat(omegav, omegav), onecosthetatheta2));
+
+    return R;
+};
+
 int main(int argc, char** argv)
-{  
+{
+    cout << setprecision(4) << fixed;
     // Input 4 initial poses (add more here and increment NPOSES appropriately)
     Mat3D_t wRb_cams = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams = Create3DMat(NPOSES, 3, 1);
@@ -897,7 +936,7 @@ int main(int argc, char** argv)
 
     // Run bundle adjustment
     // We will optimize only the poses from START_POSE to NPOSES (inclusive)
-    
+    Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
     for(int iter=0; iter<NUM_ITERATIONS; iter++)
     {
         // Formulate Jacobian and residual
@@ -957,6 +996,7 @@ int main(int argc, char** argv)
                 {// Optimizing pose also
                     int cols_pose = NPTS*3 + (idx_cam - (START_POSE-1))*6;
                     vector<int> idx_cols_pose = vector<int> (6, 0);
+                    idx_cols_pose = {cols_pose, cols_pose+1, cols_pose+2, cols_pose+3, cols_pose+4, cols_pose+5};
                     for(int idx_row=row; idx_row<(row+2); idx_row++)
                     {
                         for(int idx_vec=0; idx_vec<6; idx_vec++)
@@ -971,6 +1011,7 @@ int main(int argc, char** argv)
                 }
                 int cols_pts = idx_pts*3;
                 vector<int> idx_cols_pts = vector<int> (3, 0);
+                idx_cols_pts = {cols_pts, cols_pts+1, cols_pts+2};
                 for(int idx_row=row; idx_row<(row+2); idx_row++)
                 {
                     for(int idx_vec=0; idx_vec<3; idx_vec++)
@@ -988,14 +1029,110 @@ int main(int argc, char** argv)
         // Calculate cauchy weights
         vector<double> r2 = vector<double> (r.size(), 0);
         double partial_sum = 0;
-        /*
-        for(int idx=0; idx<r.size(); 0)
+        
+        for(int idx=0; idx<r.size(); idx++)
         {
-            r2[idx]=pow(r[idx][0],2);
+            r2[idx]=r[idx][0] * r[idx][0];//pow(r[idx][0],2);
             partial_sum += r2[idx];
         }
         double sigsqrd = partial_sum / r2.size();
-        */
+        Mat2D_t W = Create2DMat(NPTS*NPOSES*2, NPTS*NPOSES*2);
+        for(int idx=0; idx<NPTS*NPOSES*2; idx++)
+        {
+            W[idx][idx] = 1 / (1 + r2[idx]/sigsqrd);
+        }
+
+        //Show2DMat(W);
+        //Show2DMat(J);
+
+        // Calculate update (slow and simple method)
+        //Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
+        H = Mul2DMat(Mul2DMat(Trans2DMat(J), W), J);
+        Show2DMat(H);
+        //Show2DMat(GetInverseMat(H));
+        //cout << "H's determinant = " << 
+        Mat2D_t dx = Create2DMat(NPTS*3+NPOSES_OPT*6, 1);
+        dx = Mul2DMat(GetInverseMat(H), Mul2DMat(Mul2DMat(Trans2DMat(J), W), r));
+
+        //Show2DMat(dx);
+
+        
+        // Update points
+        Mat3D_t dx_points = Create3DMat(NPTS, 3, 1);
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+        {
+            for(int idx_dim=0; idx_dim<3; idx_dim++)
+            {
+                dx_points[idx_pts][idx_dim][0] = dx[idx_pts*3+idx_dim][0];
+            }
+        }
+        
+        for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+        {
+            for(int idx_dim=0; idx_dim<3; idx_dim++)
+            {
+                points_world_estimate[idx_pts][idx_dim][0] += dx_points[idx_pts][idx_dim][0];
+            }
+        }
+        
+
+        // Update poses
+        Mat2D_t dx_poses = Create2DMat(6, NPOSES_OPT);
+        for(int idx_cam=0; idx_cam<NPOSES_OPT; idx_cam++)
+        {
+            for(int idx_dim=0; idx_dim<6; idx_dim++)
+            {
+                dx_poses[idx_dim][idx_cam] = dx[idx_cam*6+idx_dim][0];
+            }
+        }
+        
+        Mat2D_t twist = Create2DMat(6, 1);
+        for(int idx_cam=0; idx_cam<NPOSES_OPT; idx_cam++)
+        {
+            for(int idx_dim=0; idx_dim<6; idx_dim++)
+            {
+                twist[idx_dim][0] = dx_poses[idx_dim][idx_cam];
+            }
+            // Approximate the exponential map
+            Mat2D_t twist_4_6 = Create2DMat(3, 1);
+            Mat2D_t twist_1_3 = Create2DMat(3, 1);
+            twist_1_3 = { {twist[0][0]}, {twist[1][0]}, {twist[2][0]} };
+            twist_4_6 = { {twist[3][0]}, {twist[4][0]}, {twist[5][0]} };
+            Mat2D_t S = Create2DMat(3, 3);
+            S = skew3(twist_4_6);
+            Mat2D_t V = Create2DMat(3, 3);
+            V = Add2DMat(Add2DMat({ {1, 0, 0}, {0, 1, 0}, {0, 0, 1} }, MulScala2DMat(S, 0.5)), MulScala2DMat(Mul2DMat(S, S), 1/6));
+            Mat2D_t update = Create2DMat(4, 4);
+            for(int idx_row=0; idx_row<3; idx_row++)
+            {
+                for(int idx_col=0; idx_col<3; idx_col++)
+                {
+                    update[idx_row][idx_col] = rodrigues(twist_4_6)[idx_row][idx_col];
+                }
+                update[idx_row][3] = Mul2DMat(V, twist_1_3)[idx_row][0];
+            }
+            update[3] = { 0, 0, 0, 1};
+            cam_pose_estimates[idx_cam] = Mul2DMat(update, cam_pose_estimates[idx_cam]);
+        }      
+    }
+
+    // Convert poses back to R, p form
+    for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
+    {
+        H = cam_pose_estimates[idx_cam];
+        Mat2D_t wRb = Create2DMat(3, 3);
+        Mat2D_t p = Create2DMat(3, 1);
+        Mat2D_t H_13_4 = Create2DMat(3, 1);
+        for(int idx_row=0; idx_row<3; idx_row++)
+        {
+            for(int idx_col=0; idx_col<3; idx_col++)
+            {
+                wRb[idx_row][idx_col] = H[idx_row][idx_col];
+            }
+            p[idx_row][0] = Mul2DMat( MulScala2DMat(wRb, -1), H_13_4)[idx_row][0];
+        }
+        wRb_cams_estimate[idx_cam] = Trans2DMat(wRb);
+        p_cams_estimate[idx_cam] = p;
     }
 
     
