@@ -1048,7 +1048,7 @@ int main(int argc, char** argv)
         // Calculate update (slow and simple method)
         //Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
         H = Mul2DMat(Mul2DMat(Trans2DMat(J), W), J);
-        Show2DMat(H);
+        //Show2DMat(H);
         //Show2DMat(GetInverseMat(H));
         //cout << "H's determinant = " << 
         Mat2D_t dx = Create2DMat(NPTS*3+NPOSES_OPT*6, 1);
@@ -1150,9 +1150,21 @@ int main(int argc, char** argv)
     //Show3DMat(points_image);
     //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
 
+
     
 
-    //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world_estimate_2D);
+    WriteToPLYFile("input_test.ply", p_cams, points_world);
+
+
+    Mat2D_t points_world_estimate_2D = Create2DMat(NPTS, 3);
+    for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
+    {
+        for(int idx_dim=0; idx_dim<3; idx_dim++)
+        {
+            points_world_estimate_2D[idx_pts][idx_dim] = points_world_estimate[idx_pts][idx_dim][0];
+        }
+    }    
+    WriteToPLYFile("output_test.ply", p_cams_estimate, points_world_estimate_2D);
     
 
     return 0;
