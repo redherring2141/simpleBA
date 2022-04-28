@@ -64,8 +64,8 @@ for j=1:NPOSES
         randn_pos = randn_pos_NPOSES(:, :, j);
     end
     noise_scale = max((j-2),0) / (NPOSES-2);
-    angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
-    %angs = noise_scale*ROTATION_NOISE_STD*randn_angs;
+    %angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
+    angs = noise_scale*ROTATION_NOISE_STD*randn_angs;
     noise_rot = rot_x(angs(1)) * rot_y(angs(2)) * rot_z(angs(3));
     %noise_pos = noise_scale*POSITION_NOISE_STD*randn(3,1);
     noise_pos = noise_scale*POSITION_NOISE_STD*randn_pos;

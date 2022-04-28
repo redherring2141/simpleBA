@@ -19,7 +19,7 @@
 #define EPSILON 1e-15
 //#define _USE_MATH_DEFINES
 //#define PI 3.141592
-#define ROTATION_NOISE_STD (0.5/180*M_PI)
+#define ROTATION_NOISE_STD (0.5/180.0*M_PI)
 #define POSITION_NOISE_STD 0.7
 
 // STD deviation on image noise
@@ -694,27 +694,27 @@ int main(int argc, char** argv)
     cout << setprecision(4) << fixed;
 
     // Load random variable data
-    vector<double> randn_angs_NPOSES_raw = LoadRawData("../randn_angs_NPOSES.txt");
+    vector<double> randn_angs_NPOSES_raw = LoadRawData("./randn_angs_NPOSES.txt");
     Mat3D_t randn_angs_NPOSES_3D = Reshape1Dto3D(randn_angs_NPOSES_raw, NPOSES, 3, 1);
     //Show3DMat(randn_angs_NPOSES_3D);
 
-    vector<double> randn_pos_NPOSES_raw = LoadRawData("../randn_pos_NPOSES.txt");
+    vector<double> randn_pos_NPOSES_raw = LoadRawData("./randn_pos_NPOSES.txt");
     Mat3D_t randn_pos_NPOSES_3D = Reshape1Dto3D(randn_pos_NPOSES_raw, NPOSES, 3, 1);
     //Show3DMat(randn_pos_NPOSES_3D);
 
-    vector<double> randn_pts_world_NPTS_raw = LoadRawData("../randn_pts_world_NPTS.txt");
+    vector<double> randn_pts_world_NPTS_raw = LoadRawData("./randn_pts_world_NPTS.txt");
     Mat3D_t randn_pts_world_NPTS_3D = Reshape1Dto3D(randn_pts_world_NPTS_raw, NPTS, 3, 1);
     //Show3DMat(randn_pts_world_NPTS_3D);
 
-    vector<double> randn_pts_img_noisy_NPTS_NPOSES_raw = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
+    vector<double> randn_pts_img_noisy_NPTS_NPOSES_raw = LoadRawData("./randn_pts_img_noisy_NPTS_NPOSES.txt");
     Mat3D_t randn_pts_img_noisy_NPTS_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPTS_NPOSES_raw, NPOSES, NPTS, 2);
     //Show3DMat(randn_pts_img_noisy_NPTS_NPOSES_3D);
 
-    vector<double> outlier_idx_NPOSES_NPTS_raw = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
+    vector<double> outlier_idx_NPOSES_NPTS_raw = LoadRawData("./outlier_idx_NPOSES_NPTS.txt");
     Mat2D_t outlier_idx_NPOSES_NPTS_2D = Reshape1Dto2D(outlier_idx_NPOSES_NPTS_raw, NPOSES, NPTS);
     //Show2DMat(outlier_idx_NPOSES_NPTS_2D);
 
-    vector<double> randn_nnz_outliers_NPOSES_raw = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
+    vector<double> randn_nnz_outliers_NPOSES_raw = LoadRawData("./randn_nnz_outliers_NPOSES.txt");
     //Show1DVec(randn_nnz_outliers_NPOSES_raw);
     
 
@@ -723,7 +723,7 @@ int main(int argc, char** argv)
     Mat3D_t wRb_cams = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams = Create3DMat(NPOSES, 3, 1);
     
-    wRb_cams[0] = rot_x(-M_PI/2);
+    wRb_cams[0] = rot_x(-M_PI/2.0);
     p_cams[0] = {{0}, {0}, {0}};
 
     wRb_cams[1] = Mul2DMat(rot_z(0.4), wRb_cams[0]);
@@ -735,6 +735,9 @@ int main(int argc, char** argv)
     wRb_cams[3] = Mul2DMat(rot_z(-0.5), wRb_cams[0]);
     p_cams[3] = {{-1.3}, {0}, {0}};
 
+    //Show3DMat(wRb_cams);
+    //Show3DMat(p_cams);
+
     // Generate noisy initial guess poses
     Mat3D_t wRb_cams_noisy = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams_noisy = Create3DMat(NPOSES, 3, 1);
@@ -744,16 +747,25 @@ int main(int argc, char** argv)
     {
         double noise_scale = (double)max((idx_cam-1),0) / (double)(NPOSES-2);
         //cout << "idx = " << idx << "\tnoise_scale = " << noise_scale << endl;
-        Mat2D_t randn_angs = Create2DMat(3,1);
+        Mat2D_t randn_angs = Create2DMat(3, 1);
+        Mat2D_t randn_pos = Create2DMat(3, 1);
         if(RANDOM_FIXED)
         {
-            randn_angs = randn_angs_3D[idx_cam]
+            randn_angs = randn_angs_NPOSES_3D[idx_cam];
+            randn_pos = randn_pos_NPOSES_3D[idx_cam];
         }
-        Mat2D_t angs = MulScala2DMat(randn(3,1), noise_scale*ROTATION_NOISE_STD);        
+        else
+        {
+            randn_angs = randn(3, 1);
+            randn_pos = randn(3, 1);
+        }
+        Mat2D_t angs = MulScala2DMat(randn_angs, noise_scale*ROTATION_NOISE_STD);        
         Mat2D_t noise_rot = Mul2DMat(Mul2DMat(rot_x(angs[0][0]), rot_y(angs[1][0])), rot_z(angs[2][0]));
-        Mat2D_t noise_pos = MulScala2DMat(randn(3,1), noise_scale*POSITION_NOISE_STD);
+        Mat2D_t noise_pos = MulScala2DMat(randn_pos, noise_scale*POSITION_NOISE_STD);
         wRb_cams_noisy[idx_cam] = Mul2DMat(noise_rot, wRb_cams[idx_cam]);
         p_cams_noisy[idx_cam] = Add2DMat(noise_pos, p_cams[idx_cam]);
+        //Show2DMat(angs);
+        //cout<< "noise_scale*ROTATION_NOISE_STD = " << noise_scale*ROTATION_NOISE_STD << endl;
     }
     //Show3DMat(wRb_cams_noisy);
     //Show3DMat(p_cams_noisy);
@@ -769,15 +781,23 @@ int main(int argc, char** argv)
     //Mat3D_t points_world = Create3DMat(NPTS, 3, 1);
 
     srand(time(NULL));
-    for(int idx=0; idx<NPTS; idx++)
+    for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
     {
         Mat2D_t noise_pt = Create2DMat(3, 1);
-        Mat2D_t pt_tmp= randn(3, 1);
-        noise_pt = { {point_std[0][0]*pt_tmp[0][0]}, {point_std[1][0]*pt_tmp[1][0]}, {point_std[2][0]*pt_tmp[2][0]} };
+        Mat2D_t randn_pts_world = Create2DMat(3, 1);
+        if(RANDOM_FIXED)
+        {
+            randn_pts_world = randn_pts_world_NPTS_3D[idx_pts];
+        }
+        else
+        {
+            randn_pts_world = randn(3, 1);
+        }
+        noise_pt = { {point_std[0][0]*randn_pts_world[0][0]}, {point_std[1][0]*randn_pts_world[1][0]}, {point_std[2][0]*randn_pts_world[2][0]} };
         //Show2DMat(noise_pt);
 
-        Mat2D_t R = Mul2DMat(rot_y((double)idx/(double)NPTS*2*M_PI), rot_z((double)idx/(double)NPTS*M_PI/3));
-        double rad = 0.5 + point_rad * ((double)idx/(double)NPTS);
+        Mat2D_t R = Mul2DMat(rot_y((double)(idx_pts+1)/(double)NPTS*2*M_PI), rot_z((double)(idx_pts+1)/(double)NPTS*M_PI/3)); // MATLAB idx starts from 1, while C++ starts from 0
+        double rad = 0.5 + point_rad * ((double)(idx_pts+1)/(double)NPTS);  // MATLAB idx starts from 1, while C++ starts from 0
         Mat2D_t rad_tmp = Create2DMat(3, 1);
         rad_tmp = {{rad}, {0}, {0}};
         Mat2D_t point = Mul2DMat(R, rad_tmp);
@@ -785,10 +805,11 @@ int main(int argc, char** argv)
 
         Mat2D_t points_world_tmp = Add2DMat(Add2DMat(point_center, point), noise_pt);
         
-        points_world[idx] = {points_world_tmp[0][0], points_world_tmp[1][0], points_world_tmp[2][0]};
+        points_world[idx_pts] = {points_world_tmp[0][0], points_world_tmp[1][0], points_world_tmp[2][0]};
         //points_world[idx] = Add1DVec(Add1DVec(point_center, point), noise_pt);
+        //Show2DMat(points_world_tmp);  
     }
-    //Show2DMat(points_world);
+    Show2DMat(points_world);
 
     
     // Project points into images
