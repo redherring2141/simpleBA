@@ -270,6 +270,7 @@ cam_pose_estimates = zeros(4,4,NPOSES);
 for j=1:NPOSES
     wRb = wRb_cams_estimate(:,:,j);
     p = p_cams_estimate(:,:,j);
+    tmp_wRbp = -wRb'*p;
     cam_pose_estimates(:,:,j) = [wRb' -wRb'*p; 0 0 0 1];
 end
 

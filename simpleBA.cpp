@@ -1108,9 +1108,8 @@ int main(int argc, char** argv)
     Mat3D_t cam_pose_estimates = Create3DMat(NPOSES, 4, 4);
     for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
-        Mat2D_t wRb = wRb_cams[idx_cam];
-        Mat2D_t p = {{p_cams[idx_cam][0][0]}, {p_cams[idx_cam][1][0]}, {p_cams[idx_cam][2][0]}};
-
+        Mat2D_t wRb = wRb_cams_estimate[idx_cam];
+        Mat2D_t p = {{p_cams_estimate[idx_cam][0][0]}, {p_cams_estimate[idx_cam][1][0]}, {p_cams_estimate[idx_cam][2][0]}};
         for(int row=0; row<3; row++)
         {
             for(int col=0; col<3; col++)
@@ -1121,7 +1120,7 @@ int main(int argc, char** argv)
         }
         cam_pose_estimates[idx_cam][3] = {0, 0, 0, 1};
     }
-    Show3DMat(cam_pose_estimates);
+    //Show3DMat(cam_pose_estimates);
 
     // Run bundle adjustment
     // We will optimize only the poses from START_POSE to NPOSES (inclusive)
