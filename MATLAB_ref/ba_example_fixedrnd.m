@@ -8,6 +8,7 @@ close all;
 clear;
 home;
 
+RANDOM_SAVE = 0; % 1 for random variable save, 0 for random variable load
 NPOSES = 4; % fix this for now
 wRb_cams = zeros(3,3,NPOSES);
 p_cams = zeros(3,1,NPOSES);
@@ -29,11 +30,31 @@ POSITION_NOISE_STD = 0.7;
 wRb_cams_noisy = zeros(3,3,NPOSES);
 p_cams_noisy = zeros(3,1,NPOSES);
 
+if (RANDOM_SAVE)
+    randn_angs = randn(3,1);
+    save('./randn_angs.mat', 'randn_angs');
+    fileID1 = fopen('./randn_angs.txt', 'w');
+    fprintf(fileID1, '%12.8f\n', randn_angs);
+    fclose(fileID1);
+    
+    randn_pos = randn(3,1);
+    save('./randn_pos.mat', 'randn_pos');
+    fileID2 = fopen('./randn_pos.txt', 'w');
+    fprintf(fileID2, '%12.8f\n', randn_pos);
+    fclose(fileID2);
+else
+    load('./randn_angs.mat');
+    load('./randn_pos.mat');
+end
+
+
 for j=1:NPOSES
     noise_scale = max((j-2),0) / (NPOSES-2);
-    angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
+    %angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
+    angs = noise_scale*ROTATION_NOISE_STD*randn_angs;
     noise_rot = rot_x(angs(1)) * rot_y(angs(2)) * rot_z(angs(3));
-    noise_pos = noise_scale*POSITION_NOISE_STD*randn(3,1);
+    %noise_pos = noise_scale*POSITION_NOISE_STD*randn(3,1);
+    noise_pos = noise_scale*POSITION_NOISE_STD*randn_pos;
     wRb_cams_noisy(:,:,j) = noise_rot * wRb_cams(:,:,j);
     p_cams_noisy(:,:,j) = noise_pos + p_cams(:,:,j);
 end
@@ -45,18 +66,30 @@ point_rad = 1;
 point_std = [0.01; 0.01; 0.01];
 points_world = zeros(3,NPTS);
 
+if (RANDOM_SAVE)
+    randn_pts_world = randn(3,1);
+    save('./randn_pts_world.mat', 'randn_pts_world');
+    fileID3 = fopen('./randn_pts_world.txt', 'w');
+    fprintf(fileID3, '%12.8f\n', randn_pts_world);
+    fclose(fileID3);
+else
+    load('./randn_pts_world.mat');
+end
+
+
 for i=1:NPTS
     R = rot_y(i / NPTS * 2 * pi) * rot_z(i / NPTS * pi/3);
     rad = 0.5 + point_rad*(i / NPTS);
     point = R * [rad; 0; 0];
-    points_world(:,i) = point_center + point + point_std .* randn(3,1);
+    %points_world(:,i) = point_center + point + point_std .* randn(3,1);
+    points_world(:,i) = point_center + point + point_std .* randn_pts_world;
 end
 
 % plot point cloud
 f3d = figure;
 hold on;
 scatter3(points_world(1,:), points_world(2,:), points_world(3,:), 'b');
-title('Simulated 3D point cloud');
+title('Simulated 3D point cloud');  
 grid on;
 axis equal;
 axis vis3d;
@@ -96,6 +129,16 @@ binomial = makedist('Binomial', 'N', 1, 'p', OUTLIER_PROB);
 
 f2d = figure;
 total_outliers = 0;
+
+if (RANDOM_SAVE)
+    outlier_idx_NPOSES = zeros(NPOSES, NPTS);
+    randn_nnz_outliers_NPOSES = cell(NPOSES, 1);
+    randn_pts_img_noisy_NPOSES = zeros(2, NPTS, NPOSES);
+else
+    load('./outlier_idx_NPOSES.mat');
+    load('./randn_nnz_outliers_NPOSES.mat');
+    load('./randn_pts_img_noisy_NPOSES.mat');
+end
 for j=1:NPOSES
     wRb = wRb_cams(:,:,j);
     p = p_cams(:,:,j);
@@ -104,12 +147,35 @@ for j=1:NPOSES
     points_image(:,:,j) = bsxfun(@rdivide, points_image(:,:,j), points_image(3,:,j));
     
     % add synthetic noise on all features
-    points_image_noisy(1:2,:,j) = points_image(1:2,:,j) + IMAGE_NOISE_STD*randn(2,NPTS);
+    if (RANDOM_SAVE)
+        randn_pts_img_noisy = randn(2,NPTS);
+        randn_pts_img_noisy_NPOSES(:,:,j) = randn_pts_img_noisy; 
+    else
+        randn_pts_img_noisy = randn_pts_img_noisy_NPOSES(:,:,j);        
+    end
+    
+    %points_image_noisy(1:2,:,j) = points_image(1:2,:,j) + IMAGE_NOISE_STD*randn(2,NPTS);
+    points_image_noisy(1:2,:,j) = points_image(1:2,:,j) + IMAGE_NOISE_STD*randn_pts_img_noisy;
     
     % generate indices of outliers
-    outlier_idx = logical(random(binomial, 1, NPTS));
+    if (RANDOM_SAVE)
+        outlier_idx = logical(random(binomial, 1, NPTS));
+        outlier_idx_NPOSES(j, :) = outlier_idx;
+    else
+        outlier_idx = logical(outlier_idx_NPOSES(j, :));
+    end
+    
     total_outliers = total_outliers + nnz(outlier_idx);
-    points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn(2,nnz(outlier_idx));
+    
+    if (RANDOM_SAVE)
+        randn_nnz_outliers = randn(2,nnz(outlier_idx));
+        randn_nnz_outliers_NPOSES{j} = randn_nnz_outliers;
+    else
+        randn_nnz_outliers = randn_nnz_outliers_NPOSES{j};
+    end
+    
+    %points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn(2,nnz(outlier_idx));
+    points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn_nnz_outliers;
     
     % plot resulting points
     subplot(NPOSES,1,j);
@@ -118,6 +184,25 @@ for j=1:NPOSES
     scatter(points_image_noisy(1,:,j), points_image_noisy(2,:,j), 'r');
 end
 fprintf('Total number of outliers: %i\n', total_outliers);
+
+if (RANDOM_SAVE)
+    save('./randn_pts_img_noisy_NPOSES.mat', 'randn_pts_img_noisy_NPOSES');
+    fileID4 = fopen('./randn_pts_img_noisy_NPOSES.txt', 'w');
+    fprintf(fileID4, '%12.8f\n', randn_pts_img_noisy_NPOSES);
+    fclose(fileID4);
+    
+    save('./outlier_idx_NPOSES.mat', 'outlier_idx_NPOSES');
+    fileID5 = fopen('./outlier_idx_NPOSES.txt', 'w');
+    fprintf(fileID5, '%d\n', outlier_idx_NPOSES');    
+    fclose(fileID5);
+    
+    save('./randn_nnz_outliers_NPOSES.mat', 'randn_nnz_outliers_NPOSES');
+    fileID6 = fopen('./randn_nnz_outliers_NPOSES.txt', 'w');
+    fprintf(fileID6, '%12.8f ', randn_nnz_outliers_NPOSES{:}');   
+    fclose(fileID6);
+else
+end
+
 
 % estimated poses
 wRb_cams_estimate = wRb_cams_noisy;

@@ -162,7 +162,7 @@ for j=1:NPOSES
 end
 
 % run bundle adjustment
-NUM_ITERATIONS = 50;
+NUM_ITERATIONS = 10;
 
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
 START_POSE = 3;
