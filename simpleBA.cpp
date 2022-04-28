@@ -642,9 +642,81 @@ Mat2D_t rodrigues(Mat2D_t omega)
     return R;
 };
 
+vector<double> LoadRawData(const string &filename)
+{
+   vector<double> data_raw;
+   ifstream in(filename);
+   for(string line; getline(in, line);)
+   {
+      stringstream data_str(line);
+      //double data;
+      for(double data; data_str >> data;)
+      {
+         data_raw.push_back(data);
+      }
+   }
+   return data_raw;
+};
+
+Mat2D_t Reshape1Dto2D(vector<double> rawdata, unsigned nRows, unsigned nCols)
+{
+   Mat2D_t mat2D = Create2DMat(nRows, nCols);
+   for(int idx_row=0; idx_row<nRows; idx_row++)
+   {
+      for(int idx_col=0; idx_col<nCols; idx_col++)
+      {
+         mat2D[idx_row][idx_col] = rawdata[idx_row*nCols + idx_col];
+      }
+   }
+   return mat2D;
+};
+
+Mat3D_t Reshape1Dto3D(vector<double> rawdata, unsigned nDepths, unsigned nRows, unsigned nCols)
+{
+   Mat3D_t mat3D = Create3DMat(nDepths, nRows, nCols);
+   for(int idx_depth=0; idx_depth<nDepths; idx_depth++)
+   {
+      for(int idx_row=0; idx_row<nRows; idx_row++)
+      {
+         for(int idx_col=0; idx_col<nCols; idx_col++)
+         {
+            mat3D[idx_depth][idx_row][idx_col] = rawdata[idx_depth*nRows*nCols + idx_row*nCols + idx_col];
+         }
+      }
+   }
+   return mat3D;
+};
+
 int main(int argc, char** argv)
 {
     cout << setprecision(4) << fixed;
+
+    // Load random variable data
+    vector<double> randn_angs_raw = LoadRawData("../randn_angs.txt");
+    Mat2D_t randn_angs_2D = Reshape1Dto2D(randn_angs_raw, 3, 1);
+    //Show2DMat(randn_angs_2D);
+
+    vector<double> randn_pos_raw = LoadRawData("../randn_pos.txt");
+    Mat2D_t randn_pos_2D = Reshape1Dto2D(randn_pos_raw, 3, 1);
+    //Show2DMat(randn_pos_2D);
+
+    vector<double> randn_pts_world = LoadRawData("../randn_pts_world.txt");
+    Mat2D_t randn_pts_world_2D = Reshape1Dto2D(randn_pts_world, 3, 1);
+    //Show2DMat(randn_pts_world_2D);
+
+    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPOSES.txt");
+    Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
+    //Show3DMat(randn_pts_img_noisy_NPOSES_3D);
+
+    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES.txt");
+    Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
+    //Show2DMat(outlier_idx_NPOSES_2D);
+
+    vector<double> randn_nnz_outliers_NPOSES = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
+    //Show1DVec(randn_nnz_outliers_NPOSES);
+    
+
+
     // Input 4 initial poses (add more here and increment NPOSES appropriately)
     Mat3D_t wRb_cams = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams = Create3DMat(NPOSES, 3, 1);
