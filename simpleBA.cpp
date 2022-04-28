@@ -32,7 +32,7 @@
 #define START_POSE  3 // (Originally 3 in MATLAB's indexing system)
 #define NPOSES_OPT  (NPOSES - START_POSE + 1)
 
-#define RANDOM_FIX 1 // 1 for load random data generated from MATLAB, 0 for random generation here inside
+#define RANDOM_FIXED 1 // 1 for load random data generated from MATLAB, 0 for random generation here inside
 
 
 using namespace std;
@@ -694,23 +694,23 @@ int main(int argc, char** argv)
     cout << setprecision(4) << fixed;
 
     // Load random variable data
-    vector<double> randn_angs_raw = LoadRawData("../randn_angs.txt");
+    vector<double> randn_angs_raw = LoadRawData("../randn_angs_NPOSES.txt");
     Mat2D_t randn_angs_2D = Reshape1Dto2D(randn_angs_raw, 3, 1);
     //Show2DMat(randn_angs_2D);
 
-    vector<double> randn_pos_raw = LoadRawData("../randn_pos.txt");
+    vector<double> randn_pos_raw = LoadRawData("../randn_pos_NPOSES.txt");
     Mat2D_t randn_pos_2D = Reshape1Dto2D(randn_pos_raw, 3, 1);
     //Show2DMat(randn_pos_2D);
 
-    vector<double> randn_pts_world = LoadRawData("../randn_pts_world.txt");
+    vector<double> randn_pts_world = LoadRawData("../randn_pts_world_NPTS.txt");
     Mat2D_t randn_pts_world_2D = Reshape1Dto2D(randn_pts_world, 3, 1);
     //Show2DMat(randn_pts_world_2D);
 
-    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPOSES.txt");
+    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
     Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
     //Show3DMat(randn_pts_img_noisy_NPOSES_3D);
 
-    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES.txt");
+    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
     Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
     //Show2DMat(outlier_idx_NPOSES_2D);
 
@@ -739,7 +739,8 @@ int main(int argc, char** argv)
     Mat3D_t wRb_cams_noisy = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams_noisy = Create3DMat(NPOSES, 3, 1);
 
-    srand(time(NULL));
+    if(!RANDOM_FIXED)
+        srand(time(NULL));
     for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
         double noise_scale = (double)max((idx_cam-1),0) / (double)(NPOSES-2);

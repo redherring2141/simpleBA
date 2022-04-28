@@ -215,28 +215,29 @@ int main()
    Show2DMat(data);
    */
    
-   vector<double> randn_angs_raw = LoadRawData("../randn_angs.txt");
-   Mat2D_t randn_angs_2D = Reshape1Dto2D(randn_angs_raw, 3, 1);
-   Show2DMat(randn_angs_2D);
+    
+    vector<double> randn_angs_raw = LoadRawData("../randn_angs_NPOSES.txt");
+    Mat3D_t randn_angs_3D = Reshape1Dto3D(randn_angs_raw, 4, 3, 1);
+    Show3DMat(randn_angs_3D);
 
-   vector<double> randn_pos_raw = LoadRawData("../randn_pos.txt");
-   Mat2D_t randn_pos_2D = Reshape1Dto2D(randn_pos_raw, 3, 1);
-   Show2DMat(randn_pos_2D);
+    vector<double> randn_pos_raw = LoadRawData("../randn_pos_NPOSES.txt");
+    Mat3D_t randn_pos_3D = Reshape1Dto3D(randn_pos_raw, 4, 3, 1);
+    Show3DMat(randn_pos_3D);
 
-   vector<double> randn_pts_world = LoadRawData("../randn_pts_world.txt");
-   Mat2D_t randn_pts_world_2D = Reshape1Dto2D(randn_pts_world, 3, 1);
-   Show2DMat(randn_pts_world_2D);
+    vector<double> randn_pts_world = LoadRawData("../randn_pts_world_NPTS.txt");
+    Mat3D_t randn_pts_world_3D = Reshape1Dto3D(randn_pts_world, 50, 3, 1);
+    Show3DMat(randn_pts_world_3D);
 
-   vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPOSES.txt");
-   Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
-   Show3DMat(randn_pts_img_noisy_NPOSES_3D);
+    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
+    Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
+    Show3DMat(randn_pts_img_noisy_NPOSES_3D);
 
-   vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES.txt");
-   Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
-   Show2DMat(outlier_idx_NPOSES_2D);
+    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
+    Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
+    Show2DMat(outlier_idx_NPOSES_2D);
 
-   vector<double> randn_nnz_outliers_NPOSES = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
-   Show1DVec(randn_nnz_outliers_NPOSES);
+    vector<double> randn_nnz_outliers_NPOSES = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
+    Show1DVec(randn_nnz_outliers_NPOSES);
 
 
 
