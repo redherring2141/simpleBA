@@ -32,6 +32,8 @@
 #define START_POSE  3 // (Originally 3 in MATLAB's indexing system)
 #define NPOSES_OPT  (NPOSES - START_POSE + 1)
 
+#define RANDOM_FIX 1 // 1 for load random data generated from MATLAB, 0 for random generation here inside
+
 
 using namespace std;
 //using namespace Eigen;
