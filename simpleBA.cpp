@@ -694,28 +694,28 @@ int main(int argc, char** argv)
     cout << setprecision(4) << fixed;
 
     // Load random variable data
-    vector<double> randn_angs_raw = LoadRawData("../randn_angs_NPOSES.txt");
-    Mat2D_t randn_angs_2D = Reshape1Dto2D(randn_angs_raw, 3, 1);
-    //Show2DMat(randn_angs_2D);
+    vector<double> randn_angs_NPOSES_raw = LoadRawData("../randn_angs_NPOSES.txt");
+    Mat3D_t randn_angs_NPOSES_3D = Reshape1Dto3D(randn_angs_NPOSES_raw, NPOSES, 3, 1);
+    //Show3DMat(randn_angs_NPOSES_3D);
 
-    vector<double> randn_pos_raw = LoadRawData("../randn_pos_NPOSES.txt");
-    Mat2D_t randn_pos_2D = Reshape1Dto2D(randn_pos_raw, 3, 1);
-    //Show2DMat(randn_pos_2D);
+    vector<double> randn_pos_NPOSES_raw = LoadRawData("../randn_pos_NPOSES.txt");
+    Mat3D_t randn_pos_NPOSES_3D = Reshape1Dto3D(randn_pos_NPOSES_raw, NPOSES, 3, 1);
+    //Show3DMat(randn_pos_NPOSES_3D);
 
-    vector<double> randn_pts_world = LoadRawData("../randn_pts_world_NPTS.txt");
-    Mat2D_t randn_pts_world_2D = Reshape1Dto2D(randn_pts_world, 3, 1);
-    //Show2DMat(randn_pts_world_2D);
+    vector<double> randn_pts_world_NPTS_raw = LoadRawData("../randn_pts_world_NPTS.txt");
+    Mat3D_t randn_pts_world_NPTS_3D = Reshape1Dto3D(randn_pts_world_NPTS_raw, NPTS, 3, 1);
+    //Show3DMat(randn_pts_world_NPTS_3D);
 
-    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
-    Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
-    //Show3DMat(randn_pts_img_noisy_NPOSES_3D);
+    vector<double> randn_pts_img_noisy_NPTS_NPOSES_raw = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
+    Mat3D_t randn_pts_img_noisy_NPTS_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPTS_NPOSES_raw, NPOSES, NPTS, 2);
+    //Show3DMat(randn_pts_img_noisy_NPTS_NPOSES_3D);
 
-    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
-    Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
-    //Show2DMat(outlier_idx_NPOSES_2D);
+    vector<double> outlier_idx_NPOSES_NPTS_raw = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
+    Mat2D_t outlier_idx_NPOSES_NPTS_2D = Reshape1Dto2D(outlier_idx_NPOSES_NPTS_raw, NPOSES, NPTS);
+    //Show2DMat(outlier_idx_NPOSES_NPTS_2D);
 
-    vector<double> randn_nnz_outliers_NPOSES = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
-    //Show1DVec(randn_nnz_outliers_NPOSES);
+    vector<double> randn_nnz_outliers_NPOSES_raw = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
+    //Show1DVec(randn_nnz_outliers_NPOSES_raw);
     
 
 
@@ -739,12 +739,16 @@ int main(int argc, char** argv)
     Mat3D_t wRb_cams_noisy = Create3DMat(NPOSES, 3, 3);
     Mat3D_t p_cams_noisy = Create3DMat(NPOSES, 3, 1);
 
-    if(!RANDOM_FIXED)
-        srand(time(NULL));
+    srand(time(NULL));
     for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
         double noise_scale = (double)max((idx_cam-1),0) / (double)(NPOSES-2);
         //cout << "idx = " << idx << "\tnoise_scale = " << noise_scale << endl;
+        Mat2D_t randn_angs = Create2DMat(3,1);
+        if(RANDOM_FIXED)
+        {
+            randn_angs = randn_angs_3D[idx_cam]
+        }
         Mat2D_t angs = MulScala2DMat(randn(3,1), noise_scale*ROTATION_NOISE_STD);        
         Mat2D_t noise_rot = Mul2DMat(Mul2DMat(rot_x(angs[0][0]), rot_y(angs[1][0])), rot_z(angs[2][0]));
         Mat2D_t noise_pos = MulScala2DMat(randn(3,1), noise_scale*POSITION_NOISE_STD);

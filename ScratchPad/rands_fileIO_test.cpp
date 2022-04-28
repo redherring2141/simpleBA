@@ -14,6 +14,8 @@
 
 #include <random>
 
+#define NPOSES 4
+#define NPTS 50
 #define EPSILON 1e-15
 
 using namespace std;
@@ -202,6 +204,8 @@ Mat2D_t LoadMat2D( const string &filename)
 
 int main()
 {
+
+   cout << setprecision(4) << fixed;
    /*
    auto data = loadtxt<TYPE>( "../randn_nnz_outliers_NPOSES.txt" );
    for(int idx_row=0; idx_row<data.size(); idx_row++)
@@ -216,28 +220,28 @@ int main()
    */
    
     
-    vector<double> randn_angs_raw = LoadRawData("../randn_angs_NPOSES.txt");
-    Mat3D_t randn_angs_3D = Reshape1Dto3D(randn_angs_raw, 4, 3, 1);
-    Show3DMat(randn_angs_3D);
+    vector<double> randn_angs_NPOSES_raw = LoadRawData("../randn_angs_NPOSES.txt");
+    Mat3D_t randn_angs_NPOSES_3D = Reshape1Dto3D(randn_angs_NPOSES_raw, NPOSES, 3, 1);
+    Show3DMat(randn_angs_NPOSES_3D);
 
-    vector<double> randn_pos_raw = LoadRawData("../randn_pos_NPOSES.txt");
-    Mat3D_t randn_pos_3D = Reshape1Dto3D(randn_pos_raw, 4, 3, 1);
-    Show3DMat(randn_pos_3D);
+    vector<double> randn_pos_NPOSES_raw = LoadRawData("../randn_pos_NPOSES.txt");
+    Mat3D_t randn_pos_NPOSES_3D = Reshape1Dto3D(randn_pos_NPOSES_raw, NPOSES, 3, 1);
+    Show3DMat(randn_pos_NPOSES_3D);
 
-    vector<double> randn_pts_world = LoadRawData("../randn_pts_world_NPTS.txt");
-    Mat3D_t randn_pts_world_3D = Reshape1Dto3D(randn_pts_world, 50, 3, 1);
-    Show3DMat(randn_pts_world_3D);
+    vector<double> randn_pts_world_NPTS_raw = LoadRawData("../randn_pts_world_NPTS.txt");
+    Mat3D_t randn_pts_world_NPTS_3D = Reshape1Dto3D(randn_pts_world_NPTS_raw, NPTS, 3, 1);
+    Show3DMat(randn_pts_world_NPTS_3D);
 
-    vector<double> randn_pts_img_noisy_NPOSES = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
-    Mat3D_t randn_pts_img_noisy_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPOSES, 4, 50, 2);
-    Show3DMat(randn_pts_img_noisy_NPOSES_3D);
+    vector<double> randn_pts_img_noisy_NPTS_NPOSES_raw = LoadRawData("../randn_pts_img_noisy_NPTS_NPOSES.txt");
+    Mat3D_t randn_pts_img_noisy_NPTS_NPOSES_3D = Reshape1Dto3D(randn_pts_img_noisy_NPTS_NPOSES_raw, NPOSES, NPTS, 2);
+    Show3DMat(randn_pts_img_noisy_NPTS_NPOSES_3D);
 
-    vector<double> outlier_idx_NPOSES = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
-    Mat2D_t outlier_idx_NPOSES_2D = Reshape1Dto2D(outlier_idx_NPOSES, 4, 50);
-    Show2DMat(outlier_idx_NPOSES_2D);
+    vector<double> outlier_idx_NPOSES_NPTS_raw = LoadRawData("../outlier_idx_NPOSES_NPTS.txt");
+    Mat2D_t outlier_idx_NPOSES_NPTS_2D = Reshape1Dto2D(outlier_idx_NPOSES_NPTS_raw, NPOSES, NPTS);
+    Show2DMat(outlier_idx_NPOSES_NPTS_2D);
 
-    vector<double> randn_nnz_outliers_NPOSES = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
-    Show1DVec(randn_nnz_outliers_NPOSES);
+    vector<double> randn_nnz_outliers_NPOSES_raw = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
+    Show1DVec(randn_nnz_outliers_NPOSES_raw);
 
 
 
