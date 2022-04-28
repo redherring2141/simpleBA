@@ -198,6 +198,7 @@ for j=1:NPOSES
         randn_nnz_outliers = randn_nnz_outliers_NPOSES{j};
     end
     
+    tmp_noise_outlier_image = OUTLIER_IMAGE_NOISE_STD*randn_nnz_outliers;
     %points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn(2,nnz(outlier_idx));
     points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn_nnz_outliers;
     
@@ -247,6 +248,8 @@ for i=1:NPTS
         v = wRb_cams_estimate(:,:,j) * u(:,j);
         B = eye(3,3) - v*v';
         A = A + B;
+        p_cams_tmp = p_cams_estimate(:,:,j);
+        tmp=B*p_cams_estimate(:,:,j);
         b = b + B*p_cams_estimate(:,:,j);
     end
     
