@@ -112,7 +112,7 @@ void Show3DMat(Mat3D_t mat)
 
 //------------------------------------------------
 
-template< typename T > vector< vector<T> > loadtxt( const string &filename )
+template< typename T > vector< vector<T> > loaDTxtStream( const string &filename )
 {
    vector< vector<T> > data;
    ifstream in( filename );
@@ -200,6 +200,86 @@ Mat2D_t LoadMat2D( const string &filename)
    return mat2D;
 }
 
+void WriteMat2DTxtStream(Mat2D_t mat2D, const string &filename)
+{
+   ofstream txtFile(filename);
+   unsigned int nRows = mat2D.size();
+   unsigned int nCols = mat2D[0].size();
+
+   if (txtFile.is_open())
+   {
+      for(int idx_row=0; idx_row<nRows; idx_row++)
+      {
+         for(int idx_col=0; idx_col<nCols; idx_col++)
+         {
+            txtFile << mat2D[idx_row][idx_col] << endl;
+         }
+      }
+   }
+   txtFile.close();
+};
+
+void WriteMat3DTxtStream(Mat3D_t mat3D, const string &filename)
+{
+   ofstream txtFile(filename);
+   unsigned int nDepths = mat3D.size();
+   unsigned int nRows = mat3D[0].size();
+   unsigned int nCols = mat3D[0][0].size();
+
+   if (txtFile.is_open())
+   {
+      for(int idx_depth=0; idx_depth<nDepths; idx_depth++)
+      {      
+         for(int idx_row=0; idx_row<nRows; idx_row++)
+         {
+            for(int idx_col=0; idx_col<nCols; idx_col++)
+            {
+               txtFile << setw(8) << mat3D[idx_depth][idx_row][idx_col] << endl;
+            }
+         }
+      }
+   }
+   txtFile.close();
+};
+
+void WriteMat3DTxtFprintf(Mat3D_t mat3D, const char* filename)
+{
+   unsigned int nDepths = mat3D.size();
+   unsigned int nRows = mat3D[0].size();
+   unsigned int nCols = mat3D[0][0].size();
+
+   FILE* fp = fopen(filename, "w");
+
+   for(int idx_depth=0; idx_depth<nDepths; idx_depth++)
+   {      
+      for(int idx_row=0; idx_row<nRows; idx_row++)
+      {
+         for(int idx_col=0; idx_col<nCols; idx_col++)
+         {
+            fprintf(fp, "%4.3f\n", mat3D[idx_depth][idx_row][idx_col]);
+         }
+      }
+   }
+   fclose(fp);
+};
+
+void WriteMat2DTxtFprintf(Mat2D_t mat2D, char* filename)
+{
+   unsigned int nRows = mat2D.size();
+   unsigned int nCols = mat2D[0].size();
+
+   FILE* fp = fopen(filename, "w");
+
+   for(int idx_row=0; idx_row<nRows; idx_row++)
+   {
+      for(int idx_col=0; idx_col<nCols; idx_col++)
+      {
+         fprintf(fp, "%4.3f\n", mat2D[idx_row][idx_col]);
+      }
+   }
+   fclose(fp);
+};
+
 //======================================================================
 
 int main()
@@ -207,7 +287,7 @@ int main()
 
    cout << setprecision(4) << fixed;
    /*
-   auto data = loadtxt<TYPE>( "../randn_nnz_outliers_NPOSES.txt" );
+   auto data = loaDTxtStream<TYPE>( "../randn_nnz_outliers_NPOSES.txt" );
    for(int idx_row=0; idx_row<data.size(); idx_row++)
    {
        for(int idx_col=0; idx_col<data[0].size(); idx_col++)
@@ -243,8 +323,14 @@ int main()
     vector<double> randn_nnz_outliers_NPOSES_raw = LoadRawData("../randn_nnz_outliers_NPOSES.txt");
     Show1DVec(randn_nnz_outliers_NPOSES_raw);
 
+    //WriteMat3DTxtStream(randn_angs_NPOSES_3D, "../randn_angs_NPOSES_fileouttest.txt");
+    //WriteMat2DTxtStream(outlier_idx_NPOSES_NPTS_2D, "../outlier_idx_NPOSES_NPTS_fileouttest.txt");
 
+    WriteMat3DTxtFprintf(randn_angs_NPOSES_3D, "../randn_angs_NPOSES_fileouttest.txt");
+    WriteMat2DTxtFprintf(outlier_idx_NPOSES_NPTS_2D, "../outlier_idx_NPOSES_NPTS_fileouttest.txt");
+    
 
+    
 
 
 

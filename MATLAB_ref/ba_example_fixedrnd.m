@@ -10,7 +10,11 @@ home;
 
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
-NPTS = 50;
+NPTS = 10;
+NUM_ITERATIONS = 2;
+START_POSE = 3;
+NPOSES_OPT = (NPOSES - START_POSE + 1);
+
 wRb_cams = zeros(3,3,NPOSES);
 p_cams = zeros(3,1,NPOSES);
 
@@ -275,11 +279,11 @@ for j=1:NPOSES
 end
 
 % run bundle adjustment
-NUM_ITERATIONS = 10;
+%NUM_ITERATIONS = 10;
 
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
-START_POSE = 3;
-NPOSES_OPT = (NPOSES - START_POSE + 1);
+%START_POSE = 3;
+%NPOSES_OPT = (NPOSES - START_POSE + 1);
 
 for iter=1:NUM_ITERATIONS
     % formulate jacobian and residual 

@@ -15,7 +15,7 @@
 
 
 #define NPOSES 4
-#define NPTS 50
+#define NPTS 10
 #define EPSILON 1e-15
 //#define _USE_MATH_DEFINES
 //#define PI 3.141592
@@ -28,7 +28,7 @@
 #define OUTLIER_PROB    0.1 // Probability of a bad outlier
 #define OUTLIER_IMAGE_NOISE_STD (30.0/FOCAL_LENGTH)
 
-#define NUM_ITERATIONS  10
+#define NUM_ITERATIONS  2
 #define START_POSE  3 // (Originally 3 in MATLAB's indexing system)
 #define NPOSES_OPT  (NPOSES - START_POSE + 1)
 
@@ -699,6 +699,87 @@ Mat3D_t Reshape1Dto3D(vector<double> rawdata, unsigned nDepths, unsigned nRows, 
    return mat3D;
 };
 
+void WriteMat2DTxtStream(Mat2D_t mat2D, const string &filename)
+{
+   ofstream txtFile(filename);
+   unsigned int nRows = mat2D.size();
+   unsigned int nCols = mat2D[0].size();
+
+   if (txtFile.is_open())
+   {
+      for(int idx_row=0; idx_row<nRows; idx_row++)
+      {
+         for(int idx_col=0; idx_col<nCols; idx_col++)
+         {
+            txtFile << mat2D[idx_row][idx_col] << endl;
+         }
+      }
+   }
+   txtFile.close();
+};
+
+void WriteMat3DTxtStream(Mat3D_t mat3D, const string &filename)
+{
+   ofstream txtFile(filename);
+   unsigned int nDepths = mat3D.size();
+   unsigned int nRows = mat3D[0].size();
+   unsigned int nCols = mat3D[0][0].size();
+
+   if (txtFile.is_open())
+   {
+      for(int idx_depth=0; idx_depth<nDepths; idx_depth++)
+      {      
+         for(int idx_row=0; idx_row<nRows; idx_row++)
+         {
+            for(int idx_col=0; idx_col<nCols; idx_col++)
+            {
+               txtFile << setw(8) << mat3D[idx_depth][idx_row][idx_col] << endl;
+            }
+         }
+      }
+   }
+   txtFile.close();
+};
+
+void WriteMat3DTxtFprintf(Mat3D_t mat3D, char* filename, char* precision)
+{
+   unsigned int nDepths = mat3D.size();
+   unsigned int nRows = mat3D[0].size();
+   unsigned int nCols = mat3D[0][0].size();
+
+   FILE* fp = fopen(filename, "w");
+
+   for(int idx_depth=0; idx_depth<nDepths; idx_depth++)
+   {      
+      for(int idx_row=0; idx_row<nRows; idx_row++)
+      {
+         for(int idx_col=0; idx_col<nCols; idx_col++)
+         {
+            fprintf(fp, precision, mat3D[idx_depth][idx_row][idx_col]);
+         }
+      }
+   }
+   fclose(fp);
+};
+
+void WriteMat2DTxtFprintf(Mat2D_t mat2D, char* filename, char* precision)
+{
+   unsigned int nRows = mat2D.size();
+   unsigned int nCols = mat2D[0].size();
+
+   FILE* fp = fopen(filename, "w");
+
+   for(int idx_row=0; idx_row<nRows; idx_row++)
+   {
+      for(int idx_col=0; idx_col<nCols; idx_col++)
+      {
+         fprintf(fp, precision, mat2D[idx_row][idx_col]);
+      }
+   }
+   fclose(fp);
+};
+
+
 int main(int argc, char** argv)
 {
     cout << setprecision(4) << fixed;
@@ -769,7 +850,7 @@ int main(int argc, char** argv)
             randn_angs = randn(3, 1);
             randn_pos = randn(3, 1);
         }
-        Mat2D_t angs = MulScala2DMat(randn_angs, noise_scale*ROTATION_NOISE_STD);        
+        Mat2D_t angs = MulScala2DMat(randn_angs, noise_scale*ROTATION_NOISE_STD);                
         Mat2D_t noise_rot = Mul2DMat(Mul2DMat(rot_x(angs[0][0]), rot_y(angs[1][0])), rot_z(angs[2][0]));
         Mat2D_t noise_pos = MulScala2DMat(randn_pos, noise_scale*POSITION_NOISE_STD);
         wRb_cams_noisy[idx_cam] = Mul2DMat(noise_rot, wRb_cams[idx_cam]);
@@ -938,7 +1019,9 @@ int main(int argc, char** argv)
             randn_nnz_outliers = randn(num_outliers, 2);
         }
         //Show2DMat(randn_nnz_outliers);
+        //cout << "<<<<< debugging here1>>>>>" << endl; 
         noise_outliers_image = MulScala2DMat(randn_nnz_outliers, OUTLIER_IMAGE_NOISE_STD);
+        //cout << "<<<<< debugging here2>>>>>" << endl; 
         //noise_outliers_image = MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD);
         //Show2DMat(randn(num_outliers, 2));
         //Show2DMat(MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD));
@@ -1013,7 +1096,6 @@ int main(int argc, char** argv)
     //Show3DMat(p_cams_estimate);
     // Triangulate initial guesses on all feature with least squares
     Mat3D_t points_world_estimate = Create3DMat(NPTS, 3, 1);
-    
     for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
     {
         Mat2D_t A = Create2DMat(3, 3);
@@ -1068,6 +1150,7 @@ int main(int argc, char** argv)
             //Show2DMat(Mul2DMat(B, p_cams_estimate[idx_cam]));
             b = Add2DMat(b, Mul2DMat(B, p_cams_estimate[idx_cam]));
         }
+        
 
         // Solve
         points_world_estimate[idx_pts] = Mul2DMat(GetInverseMat(A), b);
@@ -1136,6 +1219,7 @@ int main(int argc, char** argv)
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
             Mat2D_t p_world = points_world_estimate[idx_pts];
+            //Show2DMat(p_world);
             for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
             {
                 // Camera pose
@@ -1229,6 +1313,8 @@ int main(int argc, char** argv)
         {
             W[idx][idx] = 1 / (1 + r2[idx]/sigsqrd);
         }
+        //WriteMat2DTxtFprintf(W, "./W_cpp.txt", "%5.4f\n");
+        //cout << "sigsqrd = " << sigsqrd << endl;
 
         //Show2DMat(W);
         //Show2DMat(J);
@@ -1236,13 +1322,15 @@ int main(int argc, char** argv)
         // Calculate update (slow and simple method)
         //Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
         H = Mul2DMat(Mul2DMat(Trans2DMat(J), W), J);
-        //Show2DMat(H);
+        WriteMat2DTxtFprintf(H, "./H_cpp.txt", "%5.4f\n");
+        Show2DMat(H);
         //Show2DMat(GetInverseMat(H));
         //cout << "H's determinant = " << 
         Mat2D_t dx = Create2DMat(NPTS*3+NPOSES_OPT*6, 1);
         dx = Mul2DMat(GetInverseMat(H), Mul2DMat(Mul2DMat(Trans2DMat(J), W), r));
 
         //Show2DMat(dx);
+        WriteMat2DTxtFprintf(dx, "./dx_cpp.txt", "%5.4f\n");
 
         
         // Update points
@@ -1262,6 +1350,7 @@ int main(int argc, char** argv)
                 points_world_estimate[idx_pts][idx_dim][0] += dx_points[idx_pts][idx_dim][0];
             }
         }
+        //WriteMat3DTxtFprintf(dx_points, "./dx_points_cpp.txt", "%5.4f\n");
         
 
         // Update poses
@@ -1273,8 +1362,14 @@ int main(int argc, char** argv)
                 dx_poses[idx_dim][idx_cam] = dx[idx_cam*6+idx_dim][0];
             }
         }
+        //Show2DMat(dx_poses);
         
         Mat2D_t twist = Create2DMat(6, 1);
+        Mat2D_t twist_4_6 = Create2DMat(3, 1);
+        Mat2D_t twist_1_3 = Create2DMat(3, 1);        
+        Mat2D_t V = Create2DMat(3, 3);        
+        Mat2D_t update = Create2DMat(4, 4);
+        Mat2D_t S = Create2DMat(3, 3);        
         for(int idx_cam=0; idx_cam<NPOSES_OPT; idx_cam++)
         {
             for(int idx_dim=0; idx_dim<6; idx_dim++)
@@ -1282,15 +1377,10 @@ int main(int argc, char** argv)
                 twist[idx_dim][0] = dx_poses[idx_dim][idx_cam];
             }
             // Approximate the exponential map
-            Mat2D_t twist_4_6 = Create2DMat(3, 1);
-            Mat2D_t twist_1_3 = Create2DMat(3, 1);
             twist_1_3 = { {twist[0][0]}, {twist[1][0]}, {twist[2][0]} };
             twist_4_6 = { {twist[3][0]}, {twist[4][0]}, {twist[5][0]} };
-            Mat2D_t S = Create2DMat(3, 3);
             S = skew3(twist_4_6);
-            Mat2D_t V = Create2DMat(3, 3);
             V = Add2DMat(Add2DMat({ {1, 0, 0}, {0, 1, 0}, {0, 0, 1} }, MulScala2DMat(S, 0.5)), MulScala2DMat(Mul2DMat(S, S), 1/6));
-            Mat2D_t update = Create2DMat(4, 4);
             for(int idx_row=0; idx_row<3; idx_row++)
             {
                 for(int idx_col=0; idx_col<3; idx_col++)
@@ -1301,7 +1391,8 @@ int main(int argc, char** argv)
             }
             update[3] = { 0, 0, 0, 1};
             cam_pose_estimates[idx_cam] = Mul2DMat(update, cam_pose_estimates[idx_cam]);
-        }      
+            //Show2DMat(twist);
+        }
     }
 
     // Convert poses back to R, p form
@@ -1324,7 +1415,7 @@ int main(int argc, char** argv)
     }
 
     
-
+    
     
     //Show3DMat(cam_pose_estimates);
     //cout << "best_point_idx = " << best_point_idx << endl;
