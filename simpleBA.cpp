@@ -15,7 +15,7 @@
 
 
 #define NPOSES 4
-#define NPTS 50
+#define NPTS 60
 #define EPSILON 1e-15
 //#define _USE_MATH_DEFINES
 //#define PI 3.141592
@@ -786,6 +786,7 @@ void WriteMat2DTxtFprintf(Mat2D_t mat2D, char* filename, char* precision)
 int main(int argc, char** argv)
 {
     cout << setprecision(4) << fixed;
+    clock_t t_start, t_end, t_elapsed;
 
     // Load random variable data
     vector<double> randn_angs_NPOSES_raw = LoadRawData("./randn_angs_NPOSES.txt");
@@ -1225,6 +1226,7 @@ int main(int argc, char** argv)
     // Run bundle adjustment
     // We will optimize only the poses from START_POSE to NPOSES (inclusive)
     Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
+    t_start = clock();
     for(int iter=0; iter<NUM_ITERATIONS; iter++)
     {
         // Formulate Jacobian and residual
@@ -1418,6 +1420,11 @@ int main(int argc, char** argv)
         //Show2DMat(update);
         //Show3DMat(cam_pose_estimates);
     }
+    t_end = clock();
+    t_elapsed = t_end-t_start;
+    cout << "Elapsed time: " << (double)t_elapsed/(double)CLOCKS_PER_SEC << " seconds" << endl;
+    cout << "Average time per iteration: " << (double)t_elapsed/(double)CLOCKS_PER_SEC/NUM_ITERATIONS << " seconds" << endl;
+    
     //Show3DMat(cam_pose_estimates);
 
     // Convert poses back to R, p form

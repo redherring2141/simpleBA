@@ -10,7 +10,7 @@ home;
 
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
-NPTS = 50;
+NPTS = 60;
 NUM_ITERATIONS = 10;
 START_POSE = 3;
 NPOSES_OPT = (NPOSES - START_POSE + 1);
@@ -284,7 +284,8 @@ end
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
 %START_POSE = 3;
 %NPOSES_OPT = (NPOSES - START_POSE + 1);
-
+tic
+t_start=tic
 for iter=1:NUM_ITERATIONS
     % formulate jacobian and residual 
     J = zeros(NPTS*NPOSES*2, NPTS*3 + NPOSES_OPT*6);
@@ -366,6 +367,9 @@ for iter=1:NUM_ITERATIONS
         cam_pose_estimates(:,:,j) = update * cam_pose_estimates(:,:,j);
     end
 end
+t_elapsed=toc(t_start)
+Total_time = t_elapsed - t_start
+Avg_time = Total_time/double(NUM_ITERATIONS
 
 % convert poses back to R,p form
 for j=1:NPOSES
