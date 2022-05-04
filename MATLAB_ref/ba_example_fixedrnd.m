@@ -10,7 +10,7 @@ home;
 
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
-NPTS = 60;
+NPTS = 100;
 NUM_ITERATIONS = 10;
 START_POSE = 3;
 NPOSES_OPT = (NPOSES - START_POSE + 1);

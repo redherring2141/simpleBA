@@ -15,7 +15,7 @@
 
 
 #define NPOSES 4
-#define NPTS 60
+#define NPTS 100
 #define EPSILON 1e-15
 //#define _USE_MATH_DEFINES
 //#define PI 3.141592
@@ -1438,8 +1438,12 @@ int main(int argc, char** argv)
         {
             for(int idx_col=0; idx_col<3; idx_col++)
             {
-                wRb[idx_row][idx_col] = H[idx_row][idx_col];
+                wRb[idx_row][idx_col] = H[idx_col][idx_row];
             }
+            H_13_4[idx_row][0] = H[idx_row][3];
+        }
+        for(int idx_row=0; idx_row<3; idx_row++)
+        {
             p[idx_row][0] = Mul2DMat( MulScala2DMat(wRb, -1), H_13_4)[idx_row][0];
         }
         wRb_cams_estimate[idx_cam] = Trans2DMat(wRb);
