@@ -13,7 +13,7 @@
 
 
 #define NPOSES 4
-#define NPTS 50
+#define NPTS 100
 #define NUM_ITERATIONS  10
 #define START_POSE  3 // (Originally 3 in MATLAB's indexing system)
 #define NPOSES_OPT  (NPOSES - START_POSE + 1)
@@ -770,8 +770,7 @@ int main(int argc, char** argv)
 {
     cout << setprecision(4) << fixed;
     clock_t t_start, t_end, t_elapsed;
-    
-    t_start = clock();
+
     // Load random variable data
     vector<double> randn_angs_NPOSES_raw = LoadRawData("./randn_angs_NPOSES.txt");
     Mat3D_t randn_angs_NPOSES_3D = Reshape1Dto3D(randn_angs_NPOSES_raw, NPOSES, 3, 1);
@@ -884,16 +883,35 @@ int main(int argc, char** argv)
     {
         Mat2D_t wRb = wRb_cams[idx_cam];
         vector<double> p = {p_cams[idx_cam][0][0], p_cams[idx_cam][1][0], p_cams[idx_cam][2][0]};
+        //p = {p_cams[idx_cam][0][0], p_cams[idx_cam][1][0], p_cams[idx_cam][2][0]};
 
+        //Show2DMat(p);
+        //cout << p_cams[idx_cam][0][0] << endl;
+        //Show1DVec(p_cams[idx_cam][1]);
+        //Show1DVec(p);
+        //Show1DVec((vector<double>){p_cams[idx_cam][0][0], p_cams[idx_cam][1][0], p_cams[idx_cam][2][0]});
+
+        //bsxfun_minus_tmp = bsxfun_minus(points_world, p);
+        //points_image[idx_cam] = Mul2DMat(Trans2DMat(wRb), bsxfun_minus(points_world, p));
         points_image[idx_cam] = Mul2DMat(Trans2DMat(wRb), Trans2DMat(bsxfun_minus(points_world, p)));
+        //points_image[idx_cam] = Mul2DMat(wRb, Trans2DMat(bsxfun_minus(points_world, p)));
+        //Show2DMat(points_image[idx_cam]);
 
+        // Divide by camera z coordinate
         vector<double> z_tmp = Create1DVec(NPTS);
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
             z_tmp[idx_pts] = points_image[idx_cam][2][idx_pts];
         }
+        //Show1DVec(z_tmp);
+        
+        //points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]);
+        //Show2DMat(bsxfun_rdivide(points_image[idx_cam], points_image[idx_cam][3]));
         points_image[idx_cam] = bsxfun_rdivide(points_image[idx_cam], z_tmp);
-
+        //Show2DMat(points_image[idx_cam]);
+        //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER1>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+        // Add synthetic noise on all features
+        //Mat2D_t noise_points_image = Create2DMat(NPTS, 2);
         Mat2D_t noise_points_image = Create2DMat(NPTS, 2);
         Mat2D_t randn_pts_img_noisy = Create2DMat(NPTS, 2);
         if(RANDOM_FIXED)
@@ -905,15 +923,25 @@ int main(int argc, char** argv)
             randn_pts_img_noisy = randn(NPTS, 2);
         }
         noise_points_image = MulScala2DMat(randn_pts_img_noisy, IMAGE_NOISE_STD);
+        //noise_points_image = MulScala2DMat(randn(NPTS, 2), IMAGE_NOISE_STD);
+        //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER2>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
+        //Show2DMat(randn_pts_img_noisy);
+        //Show2DMat(noise_points_image);
         
         for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
         {
             for(int idx_dim=0; idx_dim<2; idx_dim++)
             {
+                //cout << "[idx_cam idx_pts idx] = [" << idx_cam << " " << idx_pts << " " << idx << "]" << endl;
+                //cout << "points_image[idx_cam][idx_pts][idx] = " << points_image[idx_cam][idx][idx_pts] << endl;
+                //cout << "noise_points_image[idx_pts][idx] = " << noise_points_image[idx_pts][idx] << endl << endl;                
+                //cout << "<<<<<<<<<<<<<<<<<<<<<<<<DEBUG MARKER3>>>>>>>>>>>>>>>>>>>>>>" << endl << endl;
                 points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_points_image[idx_pts][idx_dim];
             }
         }
+        //Show2DMat(points_image_noisy[idx_cam]);
 
+        
         // Generate indices of outliers
         vector<double> outlier_idx = Create1DVec(NPTS);
         if(RANDOM_FIXED)
@@ -924,27 +952,52 @@ int main(int argc, char** argv)
         {
             outlier_idx = binomial_rndgen(NPTS, OUTLIER_PROB);
         }
+        //Show1DVec(outlier_idx);
         
         unsigned int num_outliers = nnz(outlier_idx);
         Mat2D_t noise_outliers_image = Create2DMat(num_outliers, 2);
         Mat2D_t randn_nnz_outliers = Create2DMat(num_outliers, 2);
-
+        //cout << "debugging 0" << endl;
+        //Show1DVec(randn_nnz_outliers_NPOSES_raw);
         if(num_outliers>0)
         {
             if(RANDOM_FIXED)
             {
+                //cout << "num_outliers = " << num_outliers << endl;
                 for(int idx=0; idx<num_outliers; idx++)
                 {
+                    //cout << "debugging 1" << endl;
                     randn_nnz_outliers[idx][0] = randn_nnz_outliers_NPOSES_raw[2*(idx+total_outliers)];
                     randn_nnz_outliers[idx][1] = randn_nnz_outliers_NPOSES_raw[2*(idx+total_outliers)+1];
+                    //cout << "debugging 2" << endl;
                 }
                 
             }
             else
             {
+                //cout << "debugging 3" << endl;
                 randn_nnz_outliers = randn(num_outliers, 2);
             }
+            //Show2DMat(randn_nnz_outliers);
+            //cout << "<<<<< debugging here1>>>>>" << endl; 
             noise_outliers_image = MulScala2DMat(randn_nnz_outliers, OUTLIER_IMAGE_NOISE_STD);
+            //cout << "<<<<< debugging here2>>>>>" << endl; 
+            //noise_outliers_image = MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD);
+            //Show2DMat(randn(num_outliers, 2));
+            //Show2DMat(MulScala2DMat(randn(num_outliers, 2), OUTLIER_IMAGE_NOISE_STD));
+            //Show1DVec(outlier_idx);
+            //Show2DMat(noise_outliers_image);
+
+            /*
+            cout << "\n<<<<<points_image_noisy>>>>>" << endl;
+            Show3DMat(points_image_noisy);
+            cout << "\n<<<<<points_image>>>>>" << endl;
+            Show3DMat(points_image);
+            cout << "\n<<<<<noise_outliers_image>>>>>" << endl;
+            Show2DMat(noise_outliers_image);
+            cout << "\n<<<<<noise_points_image>>>>>" << endl;
+            Show2DMat(noise_points_image);
+            */
 
             total_outliers += num_outliers;
             //cout << "num_outliers = " << num_outliers << endl;
@@ -956,20 +1009,52 @@ int main(int argc, char** argv)
                 {            
                     for(int idx_dim=0; idx_dim<2; idx_dim++)
                     {
-                        points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_outliers_image[idx_outlier][idx_dim];                 
+
+                        points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_outliers_image[idx_outlier][idx_dim];
+                        /*
+                        if(idx_cam==1 && idx_pts==2)
+                        {
+                            cout << "idx_cam = " << idx_cam << endl;
+                            cout << "idx_pts = " << idx_pts << endl;
+                            cout << "outlier_idx[idx_pts] = " << outlier_idx[idx_pts] << endl;
+                            cout << "points_image_noisy[idx_cam][idx_dim][idx_pts] = " << points_image_noisy[idx_cam][idx_dim][idx_pts] << endl;
+                            cout << "points_image[idx_cam][idx_dim][idx_pts] = " << points_image[idx_cam][idx_dim][idx_pts] << endl;
+                            cout << "noise_outliers_image[idx_pts][idx_dim] = " << noise_outliers_image[idx_pts][idx_dim] << endl;
+                            cout << "randn_nnz_outliers[idx_pts][idx_dim] = " << randn_nnz_outliers[idx_pts][idx_dim] << endl;
+                        } 
+                        */                   
+                        
                     }
                     idx_outlier++;
+
+                            
+                    //else
+                    //{
+                    //    points_image_noisy[idx_cam][idx_dim][idx_pts] = points_image[idx_cam][idx_dim][idx_pts] + noise_points_image[idx_pts][idx_dim];
+                    //}
+                    //
+
                 }
             }
+            //Show2DMat(noise_outliers_image);
+            //Show2DMat(points_image[idx_cam]);
+            //Show2DMat(points_image_noisy[idx_cam]);
+            //cout << "Total number of outliers: " << total_outliers << endl;
         }
     }
-
+    
+    //Show3DMat(points_image_noisy);
     cout << "Total number of outliers: " << total_outliers << endl;
+
+
     
     // Estimated poses
     Mat3D_t wRb_cams_estimate = wRb_cams_noisy;
     Mat3D_t p_cams_estimate = p_cams_noisy;
 
+
+    //Show3DMat(points_image_noisy);
+    //Show3DMat(p_cams_estimate);
     // Triangulate initial guesses on all feature with least squares
     Mat3D_t points_world_estimate = Create3DMat(NPTS, 3, 1);
     for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
@@ -1017,12 +1102,23 @@ int main(int argc, char** argv)
             v = Mul2DMat(wRb_cams_estimate[idx_cam], u_pose);
             B = Add2DMat(eye, MulScala2DMat(Mul2DMat(v, Trans2DMat(v)), -1.0));
             A = Add2DMat(A, B);
+            //cout <<"Show2DMat(B);" << endl;
+            //cout << "[i, j] = [" << idx_pts << ", " << idx_cam << "]" << endl;
+            //Show2DMat(u_pose);
+            //cout <<"Show2DMat(p_cams_estimate[idx_cam]);" << endl;
+            //Show2DMat(p_cams_estimate[idx_cam]);
+            //cout << "Show2DMat(Mul2DMat(B, p_cams_estimate[idx_cam]));" << endl;
+            //Show2DMat(Mul2DMat(B, p_cams_estimate[idx_cam]));
             b = Add2DMat(b, Mul2DMat(B, p_cams_estimate[idx_cam]));
         }
         
+
         // Solve
         points_world_estimate[idx_pts] = Mul2DMat(GetInverseMat(A), b);
+
+        //Show2DMat(b);
     }
+    //Show3DMat(points_world_estimate);
 
     Mat2D_t points_world_initguess_2D = Create2DMat(NPTS, 3);
     for(int idx_pts=0; idx_pts<NPTS; idx_pts++)
@@ -1055,9 +1151,12 @@ int main(int argc, char** argv)
         {
             squared_col_sum += pow(point_deltas[idx_pts][idx_dim], 2);
         }
+        //cout << "squared_col_sum = " << squared_col_sum << endl;
         point_deltas_sqrt[idx_pts] = sqrt(squared_col_sum);
     }
     unsigned best_point_idx = idx_min(point_deltas_sqrt);
+    //Show1DVec(point_deltas_sqrt);
+    //cout << "best_point_idx = " << best_point_idx << endl;
 
     // Convert poses to SE3
     Mat3D_t cam_pose_estimates = Create3DMat(NPOSES, 4, 4);
@@ -1075,10 +1174,7 @@ int main(int argc, char** argv)
         }
         cam_pose_estimates[idx_cam][3] = {0, 0, 0, 1};
     }
-    t_end = clock();
-    t_elapsed = t_end-t_start;
-    cout << "Elapsed time: " << (double)t_elapsed/(double)CLOCKS_PER_SEC << " seconds" << endl;
-    
+    //Show3DMat(cam_pose_estimates);
 
     // Run bundle adjustment
     // We will optimize only the poses from START_POSE to NPOSES (inclusive)
@@ -1098,6 +1194,7 @@ int main(int argc, char** argv)
             //Show2DMat(p_world);
             for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
             {
+                //cout << "iter, idx_pts, idx_cam = " << iter << ", " << idx_pts << ", " << idx_cam << endl;
                 // Camera pose
                 Mat2D_t H_cam = cam_pose_estimates[idx_cam];
                 Mat2D_t p_cam = Mul2DMat(H_cam, (Mat2D_t){{p_world[0][0]}, {p_world[1][0]}, {p_world[2][0]}, {1}});
@@ -1113,11 +1210,14 @@ int main(int argc, char** argv)
                 // Project to image coordinates and calculate residual
                 Mat2D_t h_est = Create2DMat(3, 1);
                 h_est = MulScala2DMat(p_cam_truncated, 1/p_cam_truncated[2][0]);
-
+                //Show2DMat(h_est);
                 unsigned row = idx_cam*NPTS*2 + idx_pts*2;
+                //cout << "row = " << row << endl;
                 for(int idx_row=row; idx_row<(row+2); idx_row++)
                 {
+                    //cout << "<<<<< debugging 8>>>>>" << endl;         
                     r[idx_row][0] = points_image_noisy[idx_cam][idx_row-row][idx_pts] - h_est[idx_row-row][0];
+                    //cout << "<<<<< debugging 9>>>>>" << endl;                         
                 }
                 
                 // Pose Jacobian (3x6)
@@ -1166,6 +1266,7 @@ int main(int argc, char** argv)
                     }
                 }                
             }
+            //Show2DMat(r);              
         }
         double norm_r = norm_Mat(r);
     
@@ -1186,13 +1287,25 @@ int main(int argc, char** argv)
         {
             W[idx][idx] = 1 / (1 + r2[idx]/sigsqrd);
         }
+        //WriteMat2DTxtFprintf(W, "./W_cpp.txt", "%5.4f\n");
+        //cout << "sigsqrd = " << sigsqrd << endl;
+
+        //Show2DMat(W);
+        //Show2DMat(J);
 
         // Calculate update (slow and simple method)
         //Mat2D_t H = Create2DMat(NPTS*3+NPOSES_OPT*6, NPTS*3+NPOSES_OPT*6);
         H = Mul2DMat(Mul2DMat(Trans2DMat(J), W), J);
-
+        //WriteMat2DTxtFprintf(H, "./H_cpp.txt", "%5.4f\n");
+        //Show2DMat(H);
+        //Show2DMat(GetInverseMat(H));
+        //cout << "H's determinant = " << 
         Mat2D_t dx = Create2DMat(NPTS*3+NPOSES_OPT*6, 1);
         dx = Mul2DMat(GetInverseMat(H), Mul2DMat(Mul2DMat(Trans2DMat(J), W), r));
+
+        //Show2DMat(dx);
+        //WriteMat2DTxtFprintf(dx, "./dx_cpp.txt", "%5.4f\n");
+
         
         // Update points
         Mat3D_t dx_points = Create3DMat(NPTS, 3, 1);
@@ -1211,6 +1324,9 @@ int main(int argc, char** argv)
                 points_world_estimate[idx_pts][idx_dim][0] += dx_points[idx_pts][idx_dim][0];
             }
         }
+        //Show3DMat(dx_points);
+        //WriteMat3DTxtFprintf(dx_points, "./dx_points_cpp.txt", "%5.4f\n");
+        
 
         // Update poses
         Mat2D_t dx_poses = Create2DMat(6, NPOSES_OPT);
@@ -1221,6 +1337,7 @@ int main(int argc, char** argv)
                 dx_poses[idx_dim][idx_cam] = dx[NPTS*3+idx_cam*6+idx_dim][0];
             }
         }
+        //Show2DMat(dx_poses);
         
         Mat2D_t twist = Create2DMat(6, 1);
         Mat2D_t twist_4_6 = Create2DMat(3, 1);
@@ -1248,14 +1365,21 @@ int main(int argc, char** argv)
                 update[idx_row][3] = Mul2DMat(V, twist_1_3)[idx_row][0];
             }
             update[3] = { 0, 0, 0, 1};
+            //Show3DMat(cam_pose_estimates);
+            //Show2DMat(cam_pose_estimates[idx_cam]);
             cam_pose_estimates[idx_cam+START_POSE-1] = Mul2DMat(update, cam_pose_estimates[idx_cam+START_POSE-1]);
+            //Show2DMat(cam_pose_estimates[idx_cam]);
         }
+        //Show2DMat(update);
+        //Show3DMat(cam_pose_estimates);
     }
     t_end = clock();
     t_elapsed = t_end-t_start;
     cout << "Elapsed time: " << (double)t_elapsed/(double)CLOCKS_PER_SEC << " seconds" << endl;
     cout << "Average time per iteration: " << (double)t_elapsed/(double)CLOCKS_PER_SEC/NUM_ITERATIONS << " seconds" << endl;
     
+    //Show3DMat(cam_pose_estimates);
+
     // Convert poses back to R, p form
     for(int idx_cam=0; idx_cam<NPOSES; idx_cam++)
     {
@@ -1279,6 +1403,25 @@ int main(int argc, char** argv)
         p_cams_estimate[idx_cam] = p;
     }
 
+    
+    
+    
+    //Show3DMat(cam_pose_estimates);
+    //cout << "best_point_idx = " << best_point_idx << endl;
+    
+    //Show1DVec(point_deltas_sqrt);
+    
+
+    //Show3DMat(points_world_estimate);
+
+    //Show2DMat(bsxfun_minus_tmp);
+    //Show3DMat(points_image);
+    //WriteToPLYFile("input_test.ply", p_cams_noisy, points_world);
+
+
+    
+
+    //WriteToPLYFile("input_test.ply", p_cams, points_world);
     WriteToPLYFile("input_test.ply", p_cams, 0, 0, 0, points_world, 0, 0, 255);
 
     Mat2D_t points_world_estimate_2D = Create2DMat(NPTS, 3);
@@ -1289,7 +1432,9 @@ int main(int argc, char** argv)
             points_world_estimate_2D[idx_pts][idx_dim] = points_world_estimate[idx_pts][idx_dim][0];
         }
     }    
+    //WriteToPLYFile("output_test.ply", p_cams_estimate, points_world_estimate_2D);
     WriteToPLYFile("output_test.ply", p_cams_estimate, 255, 255, 255, points_world_estimate_2D, 0, 255, 0);
     
+
     return 0;
 };

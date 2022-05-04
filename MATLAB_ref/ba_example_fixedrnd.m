@@ -8,11 +8,12 @@ close all;
 clear;
 home;
 
+t_start=cputime;
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
-NPTS = 100;
+NPTS = 50;
 NUM_ITERATIONS = 10;
-START_POSE = 3;
+START_POSE = 1;
 NPOSES_OPT = (NPOSES - START_POSE + 1);
 
 wRb_cams = zeros(3,3,NPOSES);
@@ -277,6 +278,7 @@ for j=1:NPOSES
     tmp_wRbp = -wRb'*p;
     cam_pose_estimates(:,:,j) = [wRb' -wRb'*p; 0 0 0 1];
 end
+t_elapsed=cputime-t_start
 
 % run bundle adjustment
 %NUM_ITERATIONS = 10;
