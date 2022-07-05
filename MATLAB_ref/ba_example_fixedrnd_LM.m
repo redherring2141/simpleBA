@@ -8,11 +8,12 @@ close all;
 clear;
 home;
 
+t_start=cputime;
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
-NPTS = 60;
-NUM_ITERATIONS = 10;
-START_POSE = 3;
+NPTS = 50;
+NUM_ITERATIONS = 100;
+START_POSE = 1;
 NPOSES_OPT = (NPOSES - START_POSE + 1);
 
 wRb_cams = zeros(3,3,NPOSES);
@@ -277,6 +278,7 @@ for j=1:NPOSES
     tmp_wRbp = -wRb'*p;
     cam_pose_estimates(:,:,j) = [wRb' -wRb'*p; 0 0 0 1];
 end
+t_elapsed=cputime-t_start
 
 % run bundle adjustment
 %NUM_ITERATIONS = 10;
@@ -284,76 +286,81 @@ end
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
 %START_POSE = 3;
 %NPOSES_OPT = (NPOSES - START_POSE + 1);
-tic
-t_start=tic
-for iter=1:NUM_ITERATIONS
-    % formulate jacobian and residual 
-    J = zeros(NPTS*NPOSES*2, NPTS*3 + NPOSES_OPT*6);
-    r = zeros(NPTS*NPOSES*2, 1);
+t_start=cputime;
 
-    % structure of jacobian: 
-    % [points0 .. pointsi .. pointsN | poses0 .. posesi .. posesN]
-    for i=1:NPTS
-        p_world = points_world_estimate(:,:,i);
-        for j=1:NPOSES
-            % camera pose
-            H_cam = cam_pose_estimates(:,:,j);
-            
-            % transform to camera
-            p_cam = H_cam * [p_world; 1];
-            p_cam = p_cam(1:3); % truncate to remove 1
-            
-            xc = p_cam(1);  % camera coordinate
-            yc = p_cam(2);
-            zc = p_cam(3);
-            
-            % projection jacobian (2x3)
-            Jproj = [1/zc 0 -xc/(zc*zc); 
-                    0 1/zc -yc/(zc*zc)]; 
-            
-            % project to image coordinates and calculate residual
-            h_est = p_cam / p_cam(3);      
-            row = (j-1)*NPTS*2 + (i-1)*2 + 1;
-            r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
-            
-            % pose jacobian (3x6)
-            Jpose = [eye(3,3) -skew3(p_cam)];
-            
-            % point jacobian (3x3)
-            Jpoint = H_cam(1:3,1:3);
-            
-            % insert jacobians
-            if (j >= START_POSE)
-                % optimizing pose also
-                cols_pose = NPTS*3 + (j-START_POSE)*6 + 1;
-                cols_pose = cols_pose:(cols_pose+5);
-                J(row:row+1, cols_pose) = Jproj * Jpose;
-            else
-                % optimizing only point
-            end
-            
-            cols_point = (i-1)*3 + 1;
-            cols_point = cols_point:(cols_point+2);
-            J(row:row+1, cols_point) = Jproj * Jpoint;
+v=2;
+A=0;
+J = zeros(NPTS*NPOSES*2, NPTS*3 + NPOSES_OPT*6);
+r = zeros(NPTS*NPOSES*2, 1);
+r_new = zeros(NPTS*NPOSES*2, 1);
+for i=1:NPTS
+    p_world = points_world_estimate(:,:,i);
+    for j=1:NPOSES
+        % camera pose
+        H_cam = cam_pose_estimates(:,:,j);
+
+        % transform to camera
+        p_cam = H_cam * [p_world; 1];
+        p_cam = p_cam(1:3); % truncate to remove 1
+
+        xc = p_cam(1);  % camera coordinate
+        yc = p_cam(2);
+        zc = p_cam(3);
+
+        % projection jacobian (2x3)
+        Jproj = [1/zc 0 -xc/(zc*zc); 
+                0 1/zc -yc/(zc*zc)]; 
+
+        % project to image coordinates and calculate residual
+        h_est = p_cam / p_cam(3);      
+        row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+        r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
+
+        % pose jacobian (3x6)
+        Jpose = [eye(3,3) -skew3(p_cam)];
+
+        % point jacobian (3x3)
+        Jpoint = H_cam(1:3,1:3);
+
+        % insert jacobians
+        if (j >= START_POSE)
+            % optimizing pose also
+            cols_pose = NPTS*3 + (j-START_POSE)*6 + 1;
+            cols_pose = cols_pose:(cols_pose+5);
+            J(row:row+1, cols_pose) = Jproj * Jpose;
+        else
+            % optimizing only point
         end
+
+        cols_point = (i-1)*3 + 1;
+        cols_point = cols_point:(cols_point+2);
+        J(row:row+1, cols_point) = Jproj * Jpoint;
     end
-    
+end
+
+% calculate cauchy weights    
+r2 = r.*r;
+sigsqrd = mean(r2);
+W = 1 ./ (1 + r2/sigsqrd);
+W = diag(W);
+g = J'*W*r;
+damper = diag(diag(J'*W*J));
+mu = 1*max(damper,[],'all');
+
+%cam_pose_estimates_new = zeros(4,4,NPOSES);
+cam_pose_estimates_new = cam_pose_estimates;
+
+for iter=1:NUM_ITERATIONS
     fprintf('Iter %i, magnitude %f\n', iter, norm(r));
-    
-    % calculate cauchy weights
-    r2 = r.*r;
-    sigsqrd = mean(r2);
-    W = 1 ./ (1 + r2/sigsqrd);
-    W = diag(W);
-    
     % calculate update (slow and simple method)
-    H = J' * W * J;
-    dx = H\(J' * W * r);
-    
+    %H = J'*W*J+mu*damper;
+    H = J'*W*J+mu*damper;
+    dx = H\g;
+
     % update points
     dx_points = dx(1:(NPTS*3),:);
     dx_points = reshape(dx_points,3,1,size(dx_points,1)/3);
-    points_world_estimate = points_world_estimate + dx_points;
+    points_world_estimate_new = points_world_estimate + dx_points;
     
     % update poses
     dx_poses = dx((NPTS*3 + 1):end,:);
@@ -364,12 +371,94 @@ for iter=1:NUM_ITERATIONS
         S = skew3(twist(4:6));
         V = eye(3,3) + (1/2)*S + (1/6)*S*S;
         update = [rodrigues(twist(4:6)) V*twist(1:3); 0 0 0 1];
-        cam_pose_estimates(:,:,j) = update * cam_pose_estimates(:,:,j);
+        cam_pose_estimates_new(:,:,j) = update * cam_pose_estimates(:,:,j);
     end
+
+    for i=1:NPTS
+        p_world = points_world_estimate_new(:,:,i);
+        for j=1:NPOSES
+            % camera pose
+            H_cam = cam_pose_estimates_new(:,:,j);
+    
+            % transform to camera
+            p_cam = H_cam * [p_world; 1];
+            p_cam = p_cam(1:3); % truncate to remove 1
+    
+            % project to image coordinates and calculate residual
+            h_est = p_cam / p_cam(3);      
+            row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+            r_new(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
+        end
+    end
+    r2_new = r_new.*r_new;
+    %rho = (r2-r2_new) / (dx'*(mu*damper*dx+g))
+    rho = (norm(r2)^2-norm(r2_new)^2) / (dx'*(mu*damper*dx+g));
+    %rho = (sum(r2)-sum(r2_new)) / (dx'*(mu*damper*dx+g));
+
+    if (rho>0)
+        points_world_estimate = points_world_estimate_new;
+        cam_pose_estimates = cam_pose_estimates_new;
+
+        for i=1:NPTS
+            p_world = points_world_estimate(:,:,i);
+            for j=1:NPOSES
+                % camera pose
+                H_cam = cam_pose_estimates(:,:,j);
+                
+                % transform to camera
+                p_cam = H_cam * [p_world; 1];
+                p_cam = p_cam(1:3); % truncate to remove 1
+                
+                xc = p_cam(1);  % camera coordinate
+                yc = p_cam(2);
+                zc = p_cam(3);
+                
+                % projection jacobian (2x3)
+                Jproj = [1/zc 0 -xc/(zc*zc); 
+                        0 1/zc -yc/(zc*zc)]; 
+                
+                % project to image coordinates and calculate residual
+                h_est = p_cam / p_cam(3);      
+                row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+                r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
+                
+                % pose jacobian (3x6)
+                Jpose = [eye(3,3) -skew3(p_cam)];
+                
+                % point jacobian (3x3)
+                Jpoint = H_cam(1:3,1:3);
+                
+                % insert jacobians
+                if (j >= START_POSE)
+                    % optimizing pose also
+                    cols_pose = NPTS*3 + (j-START_POSE)*6 + 1;
+                    cols_pose = cols_pose:(cols_pose+5);
+                    J(row:row+1, cols_pose) = Jproj * Jpose;
+                else
+                    % optimizing only point
+                end
+                
+                cols_point = (i-1)*3 + 1;
+                cols_point = cols_point:(cols_point+2);
+                J(row:row+1, cols_point) = Jproj * Jpoint;
+            end
+        end
+        r2 = r.*r;
+        sigsqrd = mean(r2);
+        W = diag(1 ./ (1 + r2/sigsqrd));
+        %W = diag(W);
+        damper = diag(diag(J'*W*J));
+        g=J'*W*r;
+        mu = mu*max(1/3, 1-(2*rho-1)^3);
+        v = 2;
+    else
+        mu = mu*v;
+        v = v*2;
+    end    
+
 end
-t_elapsed=toc(t_start)
-Total_time = t_elapsed - t_start
-Avg_time = Total_time/double(NUM_ITERATIONS
+t_elapsed=cputime-t_start
+Avg_time = t_elapsed/NUM_ITERATIONS
 
 % convert poses back to R,p form
 for j=1:NPOSES
