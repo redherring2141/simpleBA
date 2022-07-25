@@ -12,7 +12,7 @@ t_start=cputime;
 RANDOM_SAVE = 0; % 1 for random variable gen & save, 0 for random variable fixe & load
 NPOSES = 4; % fix this for now
 NPTS = 50;
-NUM_ITERATIONS = 10;
+NUM_ITERATIONS = 30;
 START_POSE = 3;
 NPOSES_OPT = (NPOSES - START_POSE + 1);
 
@@ -39,8 +39,8 @@ p_cams_noisy = zeros(3,1,NPOSES);
 
 
 if (RANDOM_SAVE)
-    rand_angs_NPOSES = zeros(3, 1, NPOSES);
-    rang_pos_NPOSES = zeros(3, 1, NPOSES);
+    randn_angs_NPOSES = zeros(3, 1, NPOSES);
+    randn_pos_NPOSES = zeros(3, 1, NPOSES);
     randn_pts_world_NPTS = zeros(3, 1, NPTS);
     
     randn_pts_img_noisy_NPTS_NPOSES = zeros(2, NPTS, NPOSES);
@@ -106,17 +106,17 @@ end
 if (RANDOM_SAVE)
     save('./randn_angs_NPOSES.mat', 'randn_angs_NPOSES');
     fileID1 = fopen('./randn_angs_NPOSES.txt', 'w');
-    fprintf(fileID1, '%12.8f\n', randn_angs_NPOSES);
+    fprintf(fileID1, '%7.6e\n', randn_angs_NPOSES);
     fclose(fileID1);
 
     save('./randn_pos_NPOSES.mat', 'randn_pos_NPOSES');
     fileID2 = fopen('./randn_pos_NPOSES.txt', 'w');
-    fprintf(fileID2, '%12.8f\n', randn_pos_NPOSES);
+    fprintf(fileID2, '%7.6e\n', randn_pos_NPOSES);
     fclose(fileID2);
 
     save('./randn_pts_world_NPTS.mat', 'randn_pts_world_NPTS');
     fileID3 = fopen('./randn_pts_world_NPTS.txt', 'w');
-    fprintf(fileID3, '%12.8f\n', randn_pts_world_NPTS);
+    fprintf(fileID3, '%7.6e\n', randn_pts_world_NPTS);
     fclose(fileID3);        
 else
 end
@@ -218,7 +218,7 @@ fprintf('Total number of outliers: %i\n', total_outliers);
 if (RANDOM_SAVE)
     save('./randn_pts_img_noisy_NPTS_NPOSES.mat', 'randn_pts_img_noisy_NPTS_NPOSES');
     fileID4 = fopen('./randn_pts_img_noisy_NPTS_NPOSES.txt', 'w');
-    fprintf(fileID4, '%12.8f\n', randn_pts_img_noisy_NPTS_NPOSES);
+    fprintf(fileID4, '%7.6e\n', randn_pts_img_noisy_NPTS_NPOSES);
     fclose(fileID4);
     
     save('./outlier_idx_NPOSES_NPTS.mat', 'outlier_idx_NPOSES_NPTS');
@@ -228,7 +228,7 @@ if (RANDOM_SAVE)
     
     save('./randn_nnz_outliers_NPOSES.mat', 'randn_nnz_outliers_NPOSES');
     fileID6 = fopen('./randn_nnz_outliers_NPOSES.txt', 'w');
-    fprintf(fileID6, '%12.8f ', randn_nnz_outliers_NPOSES{:});   
+    fprintf(fileID6, '%7.6e ', randn_nnz_outliers_NPOSES{:});   
     fclose(fileID6);
 else
 end
@@ -313,7 +313,7 @@ for iter=1:NUM_ITERATIONS
                     0 1/zc -yc/(zc*zc)]; 
             
             % project to image coordinates and calculate residual
-            h_est = p_cam / p_cam(3);      
+            h_est = p_cam / zc;      
             row = (j-1)*NPTS*2 + (i-1)*2 + 1;
             r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
             
