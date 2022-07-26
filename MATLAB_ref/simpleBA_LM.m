@@ -169,7 +169,7 @@ for j=1:NPOSES
 end
 %%%%% Adding noise to the generated data for cameras and points end %%%%%
 
-
+%%%%% Point projection into images start %%%%%
 % project points into images
 points_image = zeros(3,NPTS,NPOSES);
 points_image_noisy = zeros(3,NPTS,NPOSES);
@@ -245,10 +245,11 @@ if (strcmp(RANDOM_SAVE, 'SAVE'))
     fclose(fileID6);
 else
 end
-%%%%% Data generation end %%%%%
+%%%%% Point projection into images end %%%%%
+%%%%%%%%%% Data generation end %%%%%%%%%%
 
 
-%%%%% Initial guess start %%%%%
+%%%%% Initial guess by triangulation start %%%%%
 % estimated poses
 wRb_cams_estimate = wRb_cams_noisy;
 p_cams_estimate = p_cams_noisy;
@@ -290,8 +291,6 @@ for j=1:NPOSES
     ycam = wRb * [0;1;0];
 end
 
-
-
 % find best point 
 point_deltas = points_world_noisy - squeeze(points_world_estimate);
 point_deltas = sqrt(sum(point_deltas.^2,1));
@@ -306,9 +305,10 @@ for j=1:NPOSES
     cam_pose_estimate(:,:,j) = [wRb' -wRb'*p; 0 0 0 1];
 end
 t_elapsed=cputime-t_start
+%%%%% Initial guess by triangulation end %%%%%
 
 
-
+%%%%%%%%%% Bundle adjustment start %%%%%%%%%%
 % run bundle adjustment
 %%%%% Initial value assignment start %%%%%
 r = zeros(NPTS*NPOSES*2, 1);
@@ -369,7 +369,6 @@ damper = diag(diag(H));
 g = J'*W*r;
 lambda = 0.00001; % lambda = tau*max(damper)
 
-
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
 r_temp = zeros(NPTS*NPOSES*2, 1);
 err = 10000;
@@ -377,7 +376,9 @@ err_prev = 10000;
 v = 2;
 cam_pose_estimate_temp = cam_pose_estimate;
 points_world_estimate_temp = points_world_estimate;
+%%%%% Initial value assignment end %%%%%
 
+%%%%% Nonlinear least square optimization start %%%%%
 t_start=cputime;
 for iter=1:NUM_ITERATIONS
     fprintf('Iter %i, magnitude %f\n', iter, norm(r));
@@ -443,9 +444,6 @@ for iter=1:NUM_ITERATIONS
         cam_pose_estimate = cam_pose_estimate_temp;
     end
 
-    
-
-
     for i=1:NPTS
         p_world = points_world_estimate(:,:,i);
         for j=1:NPOSES
@@ -500,13 +498,13 @@ for iter=1:NUM_ITERATIONS
     H = J'*W*J;
     damper = diag(diag(H));
     g = J'*W*r;    
-
 end
-
-    
+%%%%% Nonlinear least square optimization end %%%%%
 
 t_elapsed=cputime-t_start
 Avg_time = t_elapsed/NUM_ITERATIONS
+%%%%%%%%%% Bundle adjustment end %%%%%%%%%%
+
 
 % convert poses back to R,p form
 for j=1:NPOSES
@@ -574,7 +572,7 @@ for idx_cam=1:NPOSES
     fprintf(fileID_tmp, '%7.6e\n%7.6e\n', cams_ang_noisy(1,idx_cam), cams_ang_noisy(2,idx_cam), cams_ang_noisy(3,idx_cam));
     fprintf(fileID_tmp, '%7.6e\n%7.6e\n', cams_pos_noisy(1,idx_cam), cams_pos_noisy(2,idx_cam), cams_pos_noisy(3,idx_cam));
     
-    fprintf(fileID_tmp, '%7.6e\n%7.6e\n', 1, 0, 0);
+    fprintf(fileID_tmp, '%7.6e\n%7.6e\n', 30/500, 0, 0);
 end
 
 for idx_pts=1:NPTS
