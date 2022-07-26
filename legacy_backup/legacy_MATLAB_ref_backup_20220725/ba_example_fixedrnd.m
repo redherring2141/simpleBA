@@ -39,7 +39,7 @@ p_cams_noisy = zeros(3,1,NPOSES);
 
 
 if (RANDOM_SAVE)
-    randn_angs_NPOSES = zeros(3, 1, NPOSES);
+    randn_ang_NPOSES = zeros(3, 1, NPOSES);
     randn_pos_NPOSES = zeros(3, 1, NPOSES);
     randn_pts_world_NPTS = zeros(3, 1, NPTS);
     
@@ -47,30 +47,30 @@ if (RANDOM_SAVE)
     outlier_idx_NPOSES_NPTS = zeros(NPOSES, NPTS);
     randn_nnz_outliers_NPOSES = cell(NPOSES, 1);
 else
-    load('./randn_angs_NPOSES.mat');
-    load('./randn_pos_NPOSES.mat');
-    load('./randn_pts_world_NPTS.mat');
+    load('../../data/MATLAB_ref_data/randn_ang_NPOSES.mat');
+    load('../../data/MATLAB_ref_data/randn_pos_NPOSES.mat');
+    load('../../data/MATLAB_ref_data/randn_pts_world_NPTS.mat');
     
-    load('./randn_pts_img_noisy_NPTS_NPOSES.mat');
-    load('./outlier_idx_NPOSES_NPTS.mat');
-    load('./randn_nnz_outliers_NPOSES.mat');
+    load('../../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.mat');
+    load('../../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.mat');
+    load('../../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.mat');
 end
 
 
 for j=1:NPOSES
     if (RANDOM_SAVE)
-        randn_angs = randn(3,1);
-        randn_angs_NPOSES(:, :, j) = randn_angs;
+        randn_ang = randn(3,1);
+        randn_ang_NPOSES(:, :, j) = randn_ang;
         
         randn_pos = randn(3,1);
         randn_pos_NPOSES(:, :, j) = randn_pos;
     else
-        randn_angs = randn_angs_NPOSES(:, :, j);
+        randn_ang = randn_ang_NPOSES(:, :, j);
         randn_pos = randn_pos_NPOSES(:, :, j);
     end
     noise_scale = max((j-2),0) / (NPOSES-2);
     %angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
-    angs = noise_scale*ROTATION_NOISE_STD*randn_angs;
+    angs = noise_scale*ROTATION_NOISE_STD*randn_ang;
     noise_rot = rot_x(angs(1)) * rot_y(angs(2)) * rot_z(angs(3));
     %noise_pos = noise_scale*POSITION_NOISE_STD*randn(3,1);
     noise_pos = noise_scale*POSITION_NOISE_STD*randn_pos;
@@ -104,18 +104,18 @@ end
 
 
 if (RANDOM_SAVE)
-    save('./randn_angs_NPOSES.mat', 'randn_angs_NPOSES');
-    fileID1 = fopen('./randn_angs_NPOSES.txt', 'w');
-    fprintf(fileID1, '%7.6e\n', randn_angs_NPOSES);
+    save('../../data/MATLAB_ref_data/randn_ang_NPOSES.mat', 'randn_ang_NPOSES');
+    fileID1 = fopen('../../data/MATLAB_ref_data/randn_ang_NPOSES.txt', 'w');
+    fprintf(fileID1, '%7.6e\n', randn_ang_NPOSES);
     fclose(fileID1);
 
-    save('./randn_pos_NPOSES.mat', 'randn_pos_NPOSES');
-    fileID2 = fopen('./randn_pos_NPOSES.txt', 'w');
+    save('../../data/MATLAB_ref_data/randn_pos_NPOSES.mat', 'randn_pos_NPOSES');
+    fileID2 = fopen('../../data/MATLAB_ref_data/randn_pos_NPOSES.txt', 'w');
     fprintf(fileID2, '%7.6e\n', randn_pos_NPOSES);
     fclose(fileID2);
 
-    save('./randn_pts_world_NPTS.mat', 'randn_pts_world_NPTS');
-    fileID3 = fopen('./randn_pts_world_NPTS.txt', 'w');
+    save('../../data/MATLAB_ref_data/randn_pts_world_NPTS.mat', 'randn_pts_world_NPTS');
+    fileID3 = fopen('../../data/MATLAB_ref_data/randn_pts_world_NPTS.txt', 'w');
     fprintf(fileID3, '%7.6e\n', randn_pts_world_NPTS);
     fclose(fileID3);        
 else
@@ -216,18 +216,18 @@ end
 fprintf('Total number of outliers: %i\n', total_outliers);
 
 if (RANDOM_SAVE)
-    save('./randn_pts_img_noisy_NPTS_NPOSES.mat', 'randn_pts_img_noisy_NPTS_NPOSES');
-    fileID4 = fopen('./randn_pts_img_noisy_NPTS_NPOSES.txt', 'w');
+    save('../../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.mat', 'randn_pts_img_noisy_NPTS_NPOSES');
+    fileID4 = fopen('../../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.txt', 'w');
     fprintf(fileID4, '%7.6e\n', randn_pts_img_noisy_NPTS_NPOSES);
     fclose(fileID4);
     
-    save('./outlier_idx_NPOSES_NPTS.mat', 'outlier_idx_NPOSES_NPTS');
-    fileID5 = fopen('./outlier_idx_NPOSES_NPTS.txt', 'w');
+    save('../../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.mat', 'outlier_idx_NPOSES_NPTS');
+    fileID5 = fopen('../../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.txt', 'w');
     fprintf(fileID5, '%d\n', outlier_idx_NPOSES_NPTS');    
     fclose(fileID5);
     
-    save('./randn_nnz_outliers_NPOSES.mat', 'randn_nnz_outliers_NPOSES');
-    fileID6 = fopen('./randn_nnz_outliers_NPOSES.txt', 'w');
+    save('../../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.mat', 'randn_nnz_outliers_NPOSES');
+    fileID6 = fopen('../../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.txt', 'w');
     fprintf(fileID6, '%7.6e ', randn_nnz_outliers_NPOSES{:});   
     fclose(fileID6);
 else

@@ -11,11 +11,11 @@ home;
 
 %%%%% Parameter setting start %%%%%
 RANDOM_SAVE = 'LOAD'; % 'SAVE' for random variable gen & save, 'LOAD' for random variable fixe & load
-MODE = 'LM' % 'LM' for Levenberg-Marquardt method, 'GN' for Gauss-Newton method
+MODE = 'GN' % 'LM' for Levenberg-Marquardt method, 'GN' for Gauss-Newton method
 NPOSES = 4; % fix this for now
 NPTS = 50;
 NUM_ITERATIONS = 30;
-START_POSE = 1;
+START_POSE = 3;
 NPOSES_OPT = (NPOSES - START_POSE + 1);
 
 % generate noisy initial guess poses
