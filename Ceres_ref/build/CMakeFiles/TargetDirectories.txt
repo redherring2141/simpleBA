@@ -1,0 +1,5 @@
+/home/redherring2141/Work/SLAM/BA/simpleBA/Ceres_ref/build/CMakeFiles/edit_cache.dir
+/home/redherring2141/Work/SLAM/BA/simpleBA/Ceres_ref/build/CMakeFiles/bundle_adjustment_ceres.dir
+/home/redherring2141/Work/SLAM/BA/simpleBA/Ceres_ref/build/CMakeFiles/rebuild_cache.dir
+/home/redherring2141/Work/SLAM/BA/simpleBA/Ceres_ref/build/CMakeFiles/bal_common.dir
+/home/redherring2141/Work/SLAM/BA/simpleBA/Ceres_ref/build/CMakeFiles/bundle_adjustment_g2o.dir

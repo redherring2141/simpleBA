@@ -1,6 +1,6 @@
 %BAL format data export
 %fileID_tmp = fopen('./randn_pts_img_noisy_NPTS_NPOSES_tmp.txt', 'w');
-fileID_tmp = fopen('./toy_ex_test_data.txt', 'w');
+fileID_tmp = fopen('../data/toy_ex_test_data.txt', 'w');
 fprintf(fileID_tmp, '%d %d %d\n', NPOSES, NPTS, NPOSES*NPTS);
 for idx_cam=1:NPOSES
     for idx_pts=1:NPTS
