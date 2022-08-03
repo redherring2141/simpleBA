@@ -12,11 +12,10 @@ home;
 %%%%% Parameter setting start %%%%%
 RANDOM_SAVE = 'LOAD'; % 'SAVE' for random variable gen & save, 'LOAD' for random variable fixe & load
 MODE = 'LM' % 'LM' for Levenberg-Marquardt method, 'GN' for Gauss-Newton method
-NPOSES = 4; % fix this for now
-NPTS = 50;
+%NPOSES = 4; % fix this for now
+%NPTS = 50;
 NUM_ITERATIONS = 30;
-START_POSE = 1;
-NPOSES_OPT = (NPOSES - START_POSE + 1);
+
 
 % generate noisy initial guess poses
 ROTATION_NOISE_STD = 0.7/180 * pi;
@@ -35,111 +34,55 @@ OUTLIER_IMAGE_NOISE_STD = 30 / FOCAL_LENGTH;
 
 
 %%%%%%%%%% Data generation start %%%%%%%%%%
-%%%%% 6D camera poses & 3D points data generation start %%%%%
-t_start=cputime;
+%BALdata_fid = fopen('../data/problem-16-22106-pre.txt', 'rt');
+%BALdata_fid = fopen('../data/problem-49-7776-pre.txt', 'rt');
+BALdata_fid = fopen('../data/toy_ex_test_data.txt', 'rt');
+BALdata_header = fscanf(BALdata_fid, '%d %d %d', [3 1]);
+NPOSES = BALdata_header(1);
+NPTS = BALdata_header(2);
+NOBS = BALdata_header(3);
 
-wRb_cams = zeros(3,3,NPOSES);
-p_cams = zeros(3,1,NPOSES);
-points_world = zeros(3,NPTS);
+BALdata_cell = textscan(BALdata_fid, '%f%f%f%f', 'HeaderLines', 1, 'Delimiter', '\t');
+BALdata_raw_col1 = BALdata_cell{1,1};
+BALdata_raw_col2 = BALdata_cell{1,2};
+BALdata_raw_col3 = BALdata_cell{1,3};
+BALdata_raw_col4 = BALdata_cell{1,4};
 
-% input 4 initial poses (add more here and increment NPOSES appropriately)
-wRb_cams(:,:,1) = rot_x(-pi/2);
-p_cams(:,:,1) = zeros(3,1);
-wRb_cams(:,:,2) = rot_z(0.4) * wRb_cams(:,:,1);
-p_cams(:,:,2) = [1.0; 0; 0];
-wRb_cams(:,:,3) = rot_z(0.1) * wRb_cams(:,:,2);
-p_cams(:,:,3) = [1.3; 0; 0];
-wRb_cams(:,:,4) = rot_z(-0.5) * wRb_cams(:,:,1);
-p_cams(:,:,4) = [-1.3; 0; 0];
+BALdata_obs = zeros(NOBS, 4);
+BALdata_poses = zeros(3, 3, NPOSES);
+BALdata_pts = zeros(NPTS, 3);
 
-% generate point cloud
+BALdata_obs(:,1) = BALdata_raw_col1(1:NOBS);
+BALdata_obs(:,2) = BALdata_raw_col2(1:NOBS);
+BALdata_obs(:,3) = BALdata_raw_col3(1:NOBS);
+BALdata_obs(:,4) = BALdata_raw_col4(1:NOBS);
 
-point_center = [0; 4.0; 0];
-point_rad = 1;
-for i=1:NPTS
-    R = rot_y(i / NPTS * 2 * pi) * rot_z(i / NPTS * pi/3);
-    rad = 0.5 + point_rad*(i / NPTS);
-    point = R * [rad; 0; 0];
-    points_world(:,i) = point_center + point;
-end
-%%%%% 6D camera poses & 3D points data generation end %%%%%
+BALdata_poses = reshape(BALdata_raw_col1(NOBS+1:NOBS+(NPOSES*9)),3,3,NPOSES);
+BALdata_pts = reshape(BALdata_raw_col1(NOBS+(NPOSES*9)+1:end),3,NPTS);
+cams_ang_noisy = BALdata_poses(:,1,:);
+cams_pos_noisy = BALdata_poses(:,2,:);
 
+fclose(BALdata_fid);
+%%%%%%%%%% Data generation end %%%%%%%%%%
 
-%%%%% Adding noise to the generated data for cameras and points start %%%%%
+START_POSE = 1;
+NPOSES_OPT = (NPOSES - START_POSE + 1);
+
 wRb_cams_noisy = zeros(3,3,NPOSES);
 p_cams_noisy = zeros(3,1,NPOSES);
 points_world_noisy = zeros(3,NPTS);
 
-% Random noise generation
-if (strcmp(RANDOM_SAVE, 'SAVE'))
-    randn_ang_NPOSES = zeros(3, 1, NPOSES);
-    randn_pos_NPOSES = zeros(3, 1, NPOSES);
-    randn_pts_world_NPTS = zeros(3, 1, NPTS);
-    
-    randn_pts_img_noisy_NPTS_NPOSES = zeros(2, NPTS, NPOSES);
-    outlier_idx_NPOSES_NPTS = zeros(NPOSES, NPTS);
-    randn_nnz_outliers_NPOSES = cell(NPOSES, 1);
-else
-    load('../data/MATLAB_ref_data/randn_ang_NPOSES.mat');
-    load('../data/MATLAB_ref_data/randn_pos_NPOSES.mat');
-    load('../data/MATLAB_ref_data/randn_pts_world_NPTS.mat');
-    
-    load('../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.mat');
-    load('../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.mat');
-    load('../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.mat');
+for idx_cam=1:NPOSES
+    wRb_cams_noisy(:,:,idx_cam) = eul2rotm(cams_ang_noisy(:,idx_cam)');
+    p_cams_noisy(:,1,idx_cam) = cams_pos_noisy(:,idx_cam);
 end
 
-% Random noise addition for camera poses
-for j=1:NPOSES
-    if (strcmp(RANDOM_SAVE, 'SAVE'))
-        randn_ang = randn(3,1);
-        randn_ang_NPOSES(:, :, j) = randn_ang;
-        
-        randn_pos = randn(3,1);
-        randn_pos_NPOSES(:, :, j) = randn_pos;
-    else
-        randn_ang = randn_ang_NPOSES(:, :, j);
-        randn_pos = randn_pos_NPOSES(:, :, j);
-    end
-    noise_scale = max((j-2),0) / (NPOSES-2);
-    %angs = noise_scale*ROTATION_NOISE_STD*randn(3,1);
-    angs = noise_scale*ROTATION_NOISE_STD*randn_ang;
-    noise_rot = rot_x(angs(1)) * rot_y(angs(2)) * rot_z(angs(3));
-    %noise_pos = noise_scale*POSITION_NOISE_STD*randn(3,1);
-    noise_pos = noise_scale*POSITION_NOISE_STD*randn_pos;
-    wRb_cams_noisy(:,:,j) = noise_rot * wRb_cams(:,:,j);
-    p_cams_noisy(:,:,j) = noise_pos + p_cams(:,:,j);
-end
+points_world_noisy = reshape(BALdata_pts, 3, NPTS);
+points_image_noisy = zeros(3, NPTS, NPOSES);
+points_image_noisy(1:2,:,:) = reshape(BALdata_obs(:,3:4)', 2, NPTS, NPOSES);
+points_image_noisy(3,:,:) = 1;
 
-% Random noise addition for 3D points
-for i=1:NPTS
-    if (strcmp(RANDOM_SAVE, 'SAVE'))
-        randn_pts_world = randn(3,1);
-        randn_pts_world_NPTS(:, :, i) = randn_pts_world;
-    else
-        randn_pts_world = randn_pts_world_NPTS(:, :, i);
-    end
-        
-    points_world_noisy(:,i) = points_world(:,i) + POINT_STD .* randn_pts_world;
-end
 
-if (strcmp(RANDOM_SAVE, 'SAVE'))
-    save('../data/MATLAB_ref_data/randn_ang_NPOSES.mat', 'randn_ang_NPOSES');
-    fileID1 = fopen('../data/MATLAB_ref_data/randn_ang_NPOSES.txt', 'w');
-    fprintf(fileID1, '%7.6e\n', randn_ang_NPOSES);
-    fclose(fileID1);
-
-    save('../data/MATLAB_ref_data/randn_pos_NPOSES.mat', 'randn_pos_NPOSES');
-    fileID2 = fopen('../data/MATLAB_ref_data/randn_pos_NPOSES.txt', 'w');
-    fprintf(fileID2, '%7.6e\n', randn_pos_NPOSES);
-    fclose(fileID2);
-
-    save('../data/MATLAB_ref_data/randn_pts_world_NPTS.mat', 'randn_pts_world_NPTS');
-    fileID3 = fopen('../data/MATLAB_ref_data/randn_pts_world_NPTS.txt', 'w');
-    fprintf(fileID3, '%7.6e\n', randn_pts_world_NPTS);
-    fclose(fileID3);        
-else
-end
 
 % plot point cloud
 f3d = figure;
@@ -150,103 +93,11 @@ grid on;
 axis equal;
 axis vis3d;
 
-% plot noisy camera SRTs
-for j=1:NPOSES
-    wRb = wRb_cams_noisy(:,:,j);
-    cPo = p_cams_noisy(:,:,j);
-    
-    zcam = wRb * [0;0;1];
-    xcam = wRb * [1;0;0];
-    ycam = wRb * [0;1;0];
 
-    % camera vector
-    h = quiver3(cPo(1),cPo(2),cPo(3),zcam(1)*0.5,zcam(2)*0.5,zcam(3)*0.5,'b');
-    set(h,'linewidth',2);
-    h = quiver3(cPo(1),cPo(2),cPo(3),xcam(1)*0.5,xcam(2)*0.5,xcam(3)*0.5,'b');
-    set(h,'linewidth',2);
-    h = quiver3(cPo(1),cPo(2),cPo(3),ycam(1)*0.5,ycam(2)*0.5,ycam(3)*0.5,'b');
-    set(h,'linewidth',2);
-end
-%%%%% Adding noise to the generated data for cameras and points end %%%%%
-
-%%%%% Point projection into images start %%%%%
-% project points into images
-points_image = zeros(3,NPTS,NPOSES);
-points_image_noisy = zeros(3,NPTS,NPOSES);
-points_image_noisy(3,:,:) = 1;
-
-% binomial distribution on outliers
-binomial = makedist('Binomial', 'N', 1, 'p', OUTLIER_PROB);
-
-f2d = figure;
-total_outliers = 0;
-
-for j=1:NPOSES
-    wRb = wRb_cams(:,:,j);
-    p = p_cams(:,:,j);
-    points_image(:,:,j) = wRb' * bsxfun(@minus,points_world_noisy,p);
-    % divide by camera z coordinate
-    points_image(:,:,j) = bsxfun(@rdivide, points_image(:,:,j), points_image(3,:,j));
-    
-    % add synthetic noise on all features
-    if (strcmp(RANDOM_SAVE, 'SAVE'))
-        randn_pts_img_noisy = randn(2,NPTS);
-        randn_pts_img_noisy_NPTS_NPOSES(:,:,j) = randn_pts_img_noisy; 
-    else
-        randn_pts_img_noisy = randn_pts_img_noisy_NPTS_NPOSES(:,:,j);        
-    end
-    points_image_noisy(1:2,:,j) = points_image(1:2,:,j) + IMAGE_NOISE_STD*randn_pts_img_noisy;
-    
-    % generate indices of outliers
-    if (strcmp(RANDOM_SAVE, 'SAVE'))
-        outlier_idx = logical(random(binomial, 1, NPTS));
-        outlier_idx_NPOSES_NPTS(j, :) = logical(outlier_idx);
-    else
-        outlier_idx = logical(outlier_idx_NPOSES_NPTS(j, :));
-    end
-    
-    total_outliers = total_outliers + nnz(outlier_idx);
-    
-    if (strcmp(RANDOM_SAVE, 'SAVE'))
-        randn_nnz_outliers = randn(2,nnz(outlier_idx));
-        randn_nnz_outliers_NPOSES{j} = randn_nnz_outliers;
-    else
-        randn_nnz_outliers = randn_nnz_outliers_NPOSES{j};
-    end
-    
-    tmp_noise_outlier_image = OUTLIER_IMAGE_NOISE_STD*randn_nnz_outliers;
-    points_image_noisy(1:2,outlier_idx,j) = points_image(1:2,outlier_idx,j) + OUTLIER_IMAGE_NOISE_STD*randn_nnz_outliers;
-    
-    % plot resulting points
-    subplot(NPOSES,1,j);
-    hold on;
-    scatter(points_image(1,:,j), points_image(2,:,j), 'b');
-    scatter(points_image_noisy(1,:,j), points_image_noisy(2,:,j), 'r');
-end
-fprintf('Total number of outliers: %i\n', total_outliers);
-
-if (strcmp(RANDOM_SAVE, 'SAVE'))
-    save('../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.mat', 'randn_pts_img_noisy_NPTS_NPOSES');
-    fileID4 = fopen('../data/MATLAB_ref_data/randn_pts_img_noisy_NPTS_NPOSES.txt', 'w');
-    fprintf(fileID4, '%7.6e\n', randn_pts_img_noisy_NPTS_NPOSES);
-    fclose(fileID4);
-    
-    save('../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.mat', 'outlier_idx_NPOSES_NPTS');
-    fileID5 = fopen('../data/MATLAB_ref_data/outlier_idx_NPOSES_NPTS.txt', 'w');
-    fprintf(fileID5, '%d\n', outlier_idx_NPOSES_NPTS');    
-    fclose(fileID5);
-    
-    save('../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.mat', 'randn_nnz_outliers_NPOSES');
-    fileID6 = fopen('../data/MATLAB_ref_data/randn_nnz_outliers_NPOSES.txt', 'w');
-    fprintf(fileID6, '%7.6e ', randn_nnz_outliers_NPOSES{:});   
-    fclose(fileID6);
-else
-end
-%%%%% Point projection into images end %%%%%
-%%%%%%%%%% Data generation end %%%%%%%%%%
 
 
 %%%%% Initial guess by triangulation start %%%%%
+t_start = cputime;
 % estimated poses
 wRb_cams_estimate = wRb_cams_noisy;
 p_cams_estimate = p_cams_noisy;
@@ -305,11 +156,18 @@ t_elapsed=cputime-t_start
 %%%%% Initial guess by triangulation end %%%%%
 
 
+
+
+
+
 %%%%%%%%%% Bundle adjustment start %%%%%%%%%%
 % run bundle adjustment
 %%%%% Initial value assignment start %%%%%
 r = zeros(NPTS*NPOSES*2, 1);
+numJRows = 2*NPTS*NPOSES;
+numJCols = NPTS*3+NPOSES_OPT*6;
 J = zeros(NPTS*NPOSES*2, NPTS*3 + NPOSES_OPT*6);
+
 for i=1:NPTS
     p_world = points_world_estimate(:,:,i);
     for j=1:NPOSES
