@@ -80,9 +80,6 @@ points_world_noisy = reshape(BALdata_pts, 3, NPTS);
 points_image_noisy = zeros(3, NPTS, NPOSES);
 points_image_noisy(1:2,:,:) = reshape(BALdata_obs(:,3:4)', 2, NPTS, NPOSES);
 points_image_noisy(3,:,:) = 1;
-points_image_noisy_campts_idx = BALdata_obs(:,1:2);
-points_image_noisy_camidx = points_image_noisy_campts_idx(:,1);
-points_image_noisy_ptsidx = points_image_noisy_campts_idx(:,2);
 
 
 % plot point cloud
@@ -182,50 +179,49 @@ numJRows = 2*NPTS*NPOSES;
 numJCols = NPTS*3+NPOSES_OPT*6;
 J = zeros(NPTS*NPOSES*2, NPTS*3 + NPOSES_OPT*6);
 
-for idx_obs=1:NOBS
-    idx_pts = points_image_noisy_ptsidx(idx_obs)+1;
-    idx_cam = points_image_noisy_camidx(idx_obs)+1;
-
-    p_world = points_world_estimate(:,:,idx_pts);
-    % camera pose
-    H_cam = cam_pose_estimate(:,:,idx_cam);
-    
-    % transform to camera
-    p_cam = H_cam * [p_world; 1];
-    p_cam = p_cam(1:3); % truncate to remove 1
-    
-    xc = p_cam(1);  % camera coordinate
-    yc = p_cam(2);
-    zc = p_cam(3);
-    
-    % projection jacobian (2x3)
-    Jproj = [1/zc 0 -xc/(zc*zc); 
-            0 1/zc -yc/(zc*zc)]; 
-    
-    % project to image coordinates and calculate residual
-    h_est = p_cam / zc;      
-    row = (idx_cam-1)*NPTS*2 + (idx_pts-1)*2 + 1;
-    r(row:row+1,1) = points_image_noisy(1:2,idx_pts,idx_cam) - h_est(1:2);
-    
-    % pose jacobian (3x6)
-    Jpose = [eye(3,3) -skew3(p_cam)];
-    
-    % point jacobian (3x3)
-    Jpoint = H_cam(1:3,1:3);
-    
-    % insert jacobians
-    if (idx_cam >= START_POSE)
-        % optimizing pose also
-        cols_pose = NPTS*3 + (idx_cam-START_POSE)*6 + 1;
-        cols_pose = cols_pose:(cols_pose+5);
-        J(row:row+1, cols_pose) = Jproj * Jpose;
-    else
-        % optimizing only point
+for i=1:NPTS
+    p_world = points_world_estimate(:,:,i);
+    for j=1:NPOSES
+        % camera pose
+        H_cam = cam_pose_estimate(:,:,j);
+        
+        % transform to camera
+        p_cam = H_cam * [p_world; 1];
+        p_cam = p_cam(1:3); % truncate to remove 1
+        
+        xc = p_cam(1);  % camera coordinate
+        yc = p_cam(2);
+        zc = p_cam(3);
+        
+        % projection jacobian (2x3)
+        Jproj = [1/zc 0 -xc/(zc*zc); 
+                0 1/zc -yc/(zc*zc)]; 
+        
+        % project to image coordinates and calculate residual
+        h_est = p_cam / zc;      
+        row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+        r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
+        
+        % pose jacobian (3x6)
+        Jpose = [eye(3,3) -skew3(p_cam)];
+        
+        % point jacobian (3x3)
+        Jpoint = H_cam(1:3,1:3);
+        
+        % insert jacobians
+        if (j >= START_POSE)
+            % optimizing pose also
+            cols_pose = NPTS*3 + (j-START_POSE)*6 + 1;
+            cols_pose = cols_pose:(cols_pose+5);
+            J(row:row+1, cols_pose) = Jproj * Jpose;
+        else
+            % optimizing only point
+        end
+        
+        cols_point = (i-1)*3 + 1;
+        cols_point = cols_point:(cols_point+2);
+        J(row:row+1, cols_point) = Jproj * Jpoint;
     end
-    
-    cols_point = (idx_pts-1)*3 + 1;
-    cols_point = cols_point:(cols_point+2);
-    J(row:row+1, cols_point) = Jproj * Jpoint;
 end
 % calculate cauchy weights
 r2 = r.*r;
@@ -237,7 +233,7 @@ W = diag(W);
 H = J'*W*J;
 damper = diag(diag(H));
 g = J'*W*r;
-lambda = 0.001; % lambda = tau*max(damper)
+lambda = 0.00001; % lambda = tau*max(damper)
 
 % we will optimize only the poses from START_POSE to NPOSES (inclusive)
 r_temp = zeros(NPTS*NPOSES*2, 1);
@@ -279,19 +275,18 @@ for iter=1:NUM_ITERATIONS
         cam_pose_estimate_temp(:,:,j) = update * cam_pose_estimate(:,:,j);
     end
 
-    for idx_obs=1:NOBS
-        idx_pts = points_image_noisy_ptsidx(idx_obs)+1;
-        idx_cam = points_image_noisy_camidx(idx_obs)+1;
-
-        p_world = points_world_estimate_temp(:,:,idx_pts);
-        H_cam = cam_pose_estimate_temp(:,:,idx_cam);
-        p_cam = H_cam * [p_world; 1];
-        p_cam = p_cam(1:3);
-        zc = p_cam(3);
-        h_est = p_cam/zc;
-        row = (idx_cam-1)*NPTS*2 + (idx_pts-1)*2 + 1;
-        %r_temp(row:row+1,1) = points_image_noisy(1:2,i,j)-h_est(1:2);
-        r(row:row+1,1) = points_image_noisy(1:2,idx_pts,idx_cam)-h_est(1:2);
+    for i=1:NPTS
+        p_world = points_world_estimate_temp(:,:,i);
+        for j=1:NPOSES
+            H_cam = cam_pose_estimate_temp(:,:,j);
+            p_cam = H_cam * [p_world; 1];
+            p_cam = p_cam(1:3);
+            zc = p_cam(3);
+            h_est = p_cam/zc;
+            row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+            %r_temp(row:row+1,1) = points_image_noisy(1:2,i,j)-h_est(1:2);
+            r(row:row+1,1) = points_image_noisy(1:2,i,j)-h_est(1:2);
+        end
     end
 
     err = r'*r;
@@ -315,52 +310,49 @@ for iter=1:NUM_ITERATIONS
         cam_pose_estimate = cam_pose_estimate_temp;
     end
 
-    for idx_obs=1:NOBS
-        idx_pts = points_image_noisy_ptsidx(idx_obs)+1;
-        idx_cam = points_image_noisy_camidx(idx_obs)+1;
-
-        p_world = points_world_estimate(:,:,idx_pts);
-        
-        % camera pose
-        H_cam = cam_pose_estimate(:,:,idx_cam);
-        
-        % transform to camera
-        p_cam = H_cam * [p_world; 1];
-        p_cam = p_cam(1:3); % truncate to remove 1
-        
-        xc = p_cam(1);  % camera coordinate
-        yc = p_cam(2);
-        zc = p_cam(3);
-        
-        % projection jacobian (2x3)
-        Jproj = [1/zc 0 -xc/(zc*zc); 
-                0 1/zc -yc/(zc*zc)]; 
-        
-        % project to image coordinates and calculate residual
-        h_est = p_cam / zc;      
-        row = (idx_cam-1)*NPTS*2 + (idx_pts-1)*2 + 1;
-        r(row:row+1,1) = points_image_noisy(1:2,idx_pts,idx_cam) - h_est(1:2);
-        
-        % pose jacobian (3x6)
-        Jpose = [eye(3,3) -skew3(p_cam)];
-        
-        % point jacobian (3x3)
-        Jpoint = H_cam(1:3,1:3);
-        
-        % insert jacobians
-        if (idx_cam >= START_POSE)
-            % optimizing pose also
-            cols_pose = NPTS*3 + (idx_cam-START_POSE)*6 + 1;
-            cols_pose = cols_pose:(cols_pose+5);
-            J(row:row+1, cols_pose) = Jproj * Jpose;
-        else
-            % optimizing only point
+    for i=1:NPTS
+        p_world = points_world_estimate(:,:,i);
+        for j=1:NPOSES
+            % camera pose
+            H_cam = cam_pose_estimate(:,:,j);
+            
+            % transform to camera
+            p_cam = H_cam * [p_world; 1];
+            p_cam = p_cam(1:3); % truncate to remove 1
+            
+            xc = p_cam(1);  % camera coordinate
+            yc = p_cam(2);
+            zc = p_cam(3);
+            
+            % projection jacobian (2x3)
+            Jproj = [1/zc 0 -xc/(zc*zc); 
+                    0 1/zc -yc/(zc*zc)]; 
+            
+            % project to image coordinates and calculate residual
+            h_est = p_cam / zc;      
+            row = (j-1)*NPTS*2 + (i-1)*2 + 1;
+            r(row:row+1,1) = points_image_noisy(1:2,i,j) - h_est(1:2);
+            
+            % pose jacobian (3x6)
+            Jpose = [eye(3,3) -skew3(p_cam)];
+            
+            % point jacobian (3x3)
+            Jpoint = H_cam(1:3,1:3);
+            
+            % insert jacobians
+            if (j >= START_POSE)
+                % optimizing pose also
+                cols_pose = NPTS*3 + (j-START_POSE)*6 + 1;
+                cols_pose = cols_pose:(cols_pose+5);
+                J(row:row+1, cols_pose) = Jproj * Jpose;
+            else
+                % optimizing only point
+            end
+            
+            cols_point = (i-1)*3 + 1;
+            cols_point = cols_point:(cols_point+2);
+            J(row:row+1, cols_point) = Jproj * Jpoint;
         end
-        
-        cols_point = (idx_pts-1)*3 + 1;
-        cols_point = cols_point:(cols_point+2);
-        J(row:row+1, cols_point) = Jproj * Jpoint;
-
     end    
     % calculate cauchy weights
     r2 = r.*r;
